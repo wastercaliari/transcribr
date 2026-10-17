@@ -46,16 +46,12 @@ const {
     joinVoiceChannel, EndBehaviorType, VoiceConnectionStatus, entersState
 } = require('@discordjs/voice');
 const prism = require('prism-media');
-const { GoogleGenAI } = require('@google/genai');
 
 const DISCORD_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const WEBHOOK_URL = process.env.TRANSCRIBR_WEBHOOK_URL || '';
-// Ordem dos motores: local, groq, gemini (os sem chave são ignorados)
-// Padrão: Groq (Whisper large-v3, o mais preciso e grátis) > Whisper local (ilimitado) > Gemini (último recurso)
-const STT_ORDER = (process.env.STT_ORDER || (GROQ_API_KEY ? 'groq,gemini' : 'gemini')).split(/[,\s]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+// Ordem dos motores: groq (Whisper large-v3 gratuito na nuvem) ou local (offline)
+const STT_ORDER = (process.env.STT_ORDER || 'groq').split(/[,\s]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
 const LOCAL_MAX_QUEUE = Number(process.env.LOCAL_MAX_QUEUE || 2);
 const LEAVE_GRACE_MS = 15_000;
 
@@ -64,7 +60,6 @@ if (!DISCORD_TOKEN || /cole_o_token/i.test(DISCORD_TOKEN)) {
     console.error('ERRO: DISCORD_BOT_TOKEN não configurado no arquivo .env! Rode instalar_servidor.bat ou edite o .env.');
     process.exit(2);
 }
-const ai = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
 const webhook = (() => {
     const m = WEBHOOK_URL.match(/webhooks\/(\d+)\/([\w-]+)/);
     return m ? new WebhookClient({ id: m[1], token: m[2] }) : null;
@@ -323,127 +318,42 @@ async function sttGroq(wav, names, seconds) {
     return { ...parseWhisper(await resp.json(), seconds), engine: 'groq' };
 }
 
-async function geminiGenerate(contents, temperature = 0) {
-    try {
-        return (await ai.models.generateContent({ model: 'gemini-3.5-flash', config: { temperature }, contents })).text;
-    } catch {
-        return (await ai.models.generateContent({ model: 'gemini-3.5-flash-lite', config: { temperature }, contents })).text;
-    }
-}
-
-async function sttGemini(wav, names, userName) {
-    const prompt =
-        `Você é um transcritor de conversa para chat do Discord em tempo real.\n` +
-        `Quem está falando agora: "${userName}". Pessoas na chamada: ${names.join(', ')}.\n` +
-        (vocabulary().length ? `Vocabulário do grupo (grafia correta): ${vocabulary().join(', ')}.\n` : '') +
-        `Regras: 1) Transcreva fielmente em português do Brasil, com pontuação natural. ` +
-        `2) Use a grafia correta dos nomes dos participantes. 3) Mantenha gírias e palavrões EXATAMENTE como ditos, sem censurar. ` +
-        `4) NUNCA invente <noise>, timestamps ou descrições de som. 5) NÃO adivinhe: se algo estiver abafado, omita. ` +
-        `6) Retorne APENAS o texto falado. Se não houver voz humana compreensível, responda exatamente: [SILÊNCIO]`;
-    const part = { inlineData: { mimeType: 'audio/wav', data: wav.toString('base64') } };
-    return { text: ((await geminiGenerate([part, prompt])) || '').trim(), conf: null, nsp: 0, engine: 'gemini' };
-}
-
-// ---------- Segunda opinião ----------
-const SECOND_OPINION = (process.env.SECOND_OPINION || '1') !== '0';
-const CONF_OK = Number(process.env.CONF_THRESHOLD || -0.45);   // acima disso o resultado é aceito direto
-
-const normWords = (t) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
-// Similaridade entre dois textos (1 = idênticos), por distância de edição de palavras
-function similarity(a, b) {
-    const x = normWords(a), y = normWords(b);
-    if (!x.length && !y.length) return 1;
-    const d = Array.from({ length: x.length + 1 }, (_, i) => [i, ...Array(y.length).fill(0)]);
-    for (let j = 1; j <= y.length; j++) d[0][j] = j;
-    for (let i = 1; i <= x.length; i++) {
-        for (let j = 1; j <= y.length; j++) {
-            d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (x[i - 1] === y[j - 1] ? 0 : 1));
-        }
-    }
-    return 1 - d[x.length][y.length] / Math.max(x.length, y.length);
-}
-
-const isUncertain = (r) => !!r.text && r.conf !== null && (r.conf < CONF_OK || r.nsp > 0.3);
-
-// O Gemini ouve o áudio e decide entre as duas versões (podendo corrigir erros evidentes)
-async function judge(wav, a, b, names, userName) {
-    const part = { inlineData: { mimeType: 'audio/wav', data: wav.toString('base64') } };
-    const prompt =
-        `Ouça o áudio (fala em português do Brasil de "${userName}", numa conversa entre amigos: ${names.join(', ')}). ` +
-        (vocabulary().length ? `Vocabulário do grupo: ${vocabulary().join(', ')}. ` : '') +
-        `Dois sistemas transcreveram de formas diferentes:\nA: "${a}"\nB: "${b}"\n` +
-        `Escreva a transcrição FINAL correta do que foi realmente dito. Pode escolher A ou B, ou combinar/corrigir, usando apenas o que se ouve. ` +
-        `Mantenha gírias e palavrões exatamente como falados, sem censura. Não invente nada. ` +
-        `Responda APENAS com o texto final. Se não houver fala humana compreensível, responda exatamente: [SILÊNCIO]`;
-    return ((await geminiGenerate([part, prompt])) || '').trim().replace(/^["“]|["”]$/g, '');
-}
-
-const ENGINE_LABEL = { local: 'Whisper local', groq: 'Groq Whisper', gemini: 'Gemini' };
+const ENGINE_LABEL = { local: 'Whisper local', groq: 'Groq Whisper' };
 
 function availableEngines() {
     const list = [];
     for (const e of STT_ORDER) {
         if (e === 'local' && !sttDisabled) list.push('local');
         else if (e === 'groq' && GROQ_API_KEY) list.push('groq');
-        else if (e === 'gemini' && ai) list.push('gemini');
     }
     return list;
 }
 
 // Executa um motor, respeitando fila do Whisper local e disjuntor da Groq. Lança erro se indisponível.
-async function runEngine(id, wav, names, seconds, userName, isLast) {
+async function runEngine(id, wav, names, seconds, isLast) {
     if (id === 'local') {
         if (!isLast && (!localReady || localPending >= LOCAL_MAX_QUEUE)) throw new Error('indisponível agora');
         localPending++;
         try { return await sttLocal(wav, names, seconds); } finally { localPending--; }
     }
-    if (id === 'groq') {
-        if (Date.now() < groqBlockedUntil && !isLast) throw new Error('em pausa (limite atingido)');
-        return await sttGroq(wav, names, seconds);
-    }
-    return await sttGemini(wav, names, userName);
+    if (Date.now() < groqBlockedUntil && !isLast) throw new Error('em pausa (limite atingido)');
+    return await sttGroq(wav, names, seconds);
 }
 
 async function transcribe(wav, names, seconds, userName) {
     const engines = availableEngines();
     if (!engines.length) {
-        console.warn(`⚠️ Nenhum motor disponível! STT_ORDER: [${STT_ORDER.join(', ')}], Groq: ${!!GROQ_API_KEY}, Gemini: ${!!ai}`);
+        console.warn(`⚠️ Nenhum motor disponível! STT_ORDER: [${STT_ORDER.join(', ')}], Groq: ${!!GROQ_API_KEY}`);
         return '';
     }
-    // 1) Primeiro motor que responder
     let primary = null;
     for (let i = 0; i < engines.length; i++) {
         const isLast = i === engines.length - 1;
-        try { primary = await runEngine(engines[i], wav, names, seconds, userName, isLast); break; }
+        try { primary = await runEngine(engines[i], wav, names, seconds, isLast); break; }
         catch (e) { console.warn(`${ENGINE_LABEL[engines[i]]} falhou${isLast ? '' : ', tentando o próximo'}: ${e.message}`); }
     }
     if (!primary) return '';
-    if (!SECOND_OPINION || primary.engine === 'gemini' || !isUncertain(primary)) return primary.text;
-
-    // 2) Resultado incerto: pede a opinião de outro motor (Whisper diferente primeiro, depois Gemini)
-    const others = engines.filter(id => id !== primary.engine).sort((x, y) => (x === 'gemini') - (y === 'gemini'));
-    let second = null;
-    for (const id of others) {
-        try { second = await runEngine(id, wav, names, seconds, userName, false); break; } catch { /* tenta o próximo */ }
-    }
-    if (!second || !second.text) return primary.text;
-
-    const sim = similarity(primary.text, second.text);
-    if (sim >= 0.8) return (second.conf !== null && primary.conf !== null && second.conf > primary.conf) ? second.text : primary.text;
-
-    // 3) Discordam: o Gemini ouve o áudio e arbitra (se não houver Gemini, vence o de maior confiança)
-    const better = (second.conf !== null && (primary.conf === null || second.conf > primary.conf)) ? second : primary;
-    if (!ai) return better.text;
-    try {
-        const verdict = await judge(wav, primary.text, second.text, names, userName);
-        const maxLen = Math.max(primary.text.length, second.text.length) * 1.5 + 20;
-        if (!verdict || verdict.length > maxLen) return better.text;
-        console.log(`🔍 Segunda opinião (sim ${sim.toFixed(2)}): A[${primary.engine}]="${primary.text}" | B[${second.engine}]="${second.text}" → "${verdict}"`);
-        return verdict;
-    } catch (e) {
-        console.warn('Juiz Gemini falhou:', e.message);
-        return better.text;
-    }
+    return primary.text;
 }
 
 // ---------- Postagem ----------
@@ -669,68 +579,11 @@ async function groqChatText(prompt) {
     throw new Error('Modelos de texto da Groq indisponíveis no momento.');
 }
 
-async function openaiChatText(prompt) {
-    if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY não configurada');
-    const models = ['gpt-5.6-luna', 'gpt-6-luna', 'gpt-5.4-mini'];
-    for (const model of models) {
-        try {
-            const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model,
-                    temperature: 0.3,
-                    messages: [{ role: 'user', content: prompt }]
-                }),
-                signal: AbortSignal.timeout(45_000)
-            });
-            if (resp.ok) {
-                const data = await resp.json();
-                const content = data.choices?.[0]?.message?.content;
-                if (content) return { text: content.trim(), model: `OpenAI (${model})` };
-            } else {
-                const errData = await resp.json().catch(() => ({}));
-                console.warn(`OpenAI ${model} respondeu erro (${resp.status}):`, errData.error?.message || errData);
-            }
-        } catch (e) {
-            console.warn(`OpenAI ${model} falhou:`, e.message);
-        }
-    }
-    throw new Error('Modelos da OpenAI indisponíveis ou sem créditos.');
-}
-
 async function summarizeText(prompt) {
-    // 1) Prioridade Máxima: GPT-5.6 Luna (OpenAI)
-    if (OPENAI_API_KEY) {
-        try {
-            return await openaiChatText(prompt);
-        } catch (eOpenAI) {
-            console.warn('OpenAI (GPT-5.6 Luna) falhou para resumo, acionando fallback:', eOpenAI.message);
-        }
+    if (!GROQ_API_KEY) {
+        throw new Error('GROQ_API_KEY não configurada no .env.');
     }
-    // 2) Segundo recurso: Google Gemini
-    if (ai) {
-        try {
-            const t = (await ai.models.generateContent({ model: 'gemini-3.5-flash', config: { temperature: 0.3 }, contents: prompt })).text;
-            if (t) return { text: t.trim(), model: 'Gemini 3.5 Flash' };
-        } catch (e1) {
-            console.warn('Gemini 3.5 Flash falhou para resumo:', e1.message);
-            try {
-                const t2 = (await ai.models.generateContent({ model: 'gemini-3.5-flash-lite', config: { temperature: 0.3 }, contents: prompt })).text;
-                if (t2) return { text: t2.trim(), model: 'Gemini 3.5 Flash Lite' };
-            } catch (e2) {
-                console.warn('Gemini 3.5 Flash Lite falhou para resumo, acionando fallback Groq:', e2.message);
-            }
-        }
-    }
-    // 3) Terceiro recurso: Groq (OpenAI GPT-OSS 120B / Qwen)
-    if (GROQ_API_KEY) {
-        return await groqChatText(prompt);
-    }
-    throw new Error('Nenhum modelo disponível para gerar o resumo (configure OPENAI_API_KEY, GEMINI_API_KEY ou GROQ_API_KEY).');
+    return await groqChatText(prompt);
 }
 
 // Apaga todas as mensagens do canal "transcribr-" (em lote as com menos de 14 dias, uma a uma as mais antigas)
@@ -772,7 +625,7 @@ async function handleLimpar(i) {
 async function handleResumo(i) {
     const hours = i.options.getNumber('horas', true);
     await i.deferReply({ flags: MessageFlags.Ephemeral });
-    if (!OPENAI_API_KEY && !ai && !GROQ_API_KEY) return i.editReply('❌ Resumo indisponível: configure OPENAI_API_KEY, GEMINI_API_KEY ou GROQ_API_KEY.');
+    if (!GROQ_API_KEY) return i.editReply('❌ Resumo indisponível: configure GROQ_API_KEY no .env.');
     const entries = readLog(i.guildId, Date.now() - hours * 3600 * 1000);
     if (!entries.length) return i.editReply(`Não há falas registradas nas últimas ${hours} hora(s).`);
 

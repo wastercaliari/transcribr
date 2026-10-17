@@ -3,7 +3,8 @@
 Bot do Discord que **entra sozinho nas calls de voz e transcreve todo mundo**, postando as falas em tempo real no canal `transcribr-`.
 
 - **100% Compatível com Discord DAVE (E2EE)** (criptografia de ponta a ponta).
-- **Voz → Texto inteligente**: Groq Whisper Large-v3 (ultra-rápido ~0.5s e grátis) + Gemini como reserva e resumos `/resumo`.
+- **Voz → Texto ultrarrápido**: Groq Whisper Large-v3 (transcrição em ~0.5s, 100% gratuita).
+- **Resumo Inteligente**: `/resumo` com modelos de alta capacidade da Groq (OpenAI GPT-OSS 120B / Qwen).
 - **Modo 24/7 na Nuvem (Railway)** ou execução local no Windows.
 - **Contexto dinâmico**: detecta quem está na sala para reconhecer nomes e gírias sem censurar palavrões.
 
@@ -14,30 +15,19 @@ Bot do Discord que **entra sozinho nas calls de voz e transcreve todo mundo**, p
 O Railway mantém o bot online 24 horas por dia sem precisar deixar o computador ligado.
 
 ### Passo 1: Subir o código para o seu GitHub
-1. Crie um repositório vazio no seu [GitHub](https://github.com/new) (exemplo: `transcribr`).
-2. No terminal desta pasta, adicione o repositório remoto e envie o código:
-   ```bash
-   git remote add origin https://github.com/SEU_USUARIO/transcribr.git
-   git push -u origin main
-   ```
+O repositório já está conectado e configurado com a branch `main`:
+```bash
+git push origin main
+```
 
-### Passo 2: Criar o Projeto no Railway
-1. Acesse o [Railway.app](https://railway.app) e faça login com seu GitHub.
-2. Clique em **+ New Project** → **Deploy from GitHub repo**.
-3. Selecione o repositório `transcribr`.
-4. O Railway usará automaticamente o `Dockerfile` incluído no projeto.
-
-### Passo 3: Configurar as Variáveis de Ambiente
-No painel do Railway, clique no serviço criado, vá na aba **Variables** e adicione:
+### Passo 2: Variáveis de Ambiente no Railway
+No painel do Railway, clique no serviço e vá na aba **Variables**:
 
 | Variável | Valor | Descrição |
 |---|---|---|
 | `DISCORD_BOT_TOKEN` | `seu_token_aqui` | Token gerado no Portal do Discord Developer |
 | `GROQ_API_KEY` | `sua_chave_groq` | Chave gratuita de <https://console.groq.com/keys> |
-| `GEMINI_API_KEY` | `sua_chave_gemini` | Chave gratuita de <https://aistudio.google.com/apikey> |
-| `STT_ORDER` | `groq,gemini` | Ordem dos motores na nuvem (super leve e rápido) |
-
-Pronto! O Railway fará o deploy e o bot ficará **online 24/7** imediatamente.
+| `STT_ORDER` | `groq` | Motor de transcrição (Groq Whisper Large-v3) |
 
 ---
 
@@ -46,7 +36,7 @@ Pronto! O Railway fará o deploy e o bot ficará **online 24/7** imediatamente.
 Se preferir rodar direto no seu computador:
 
 1. Renomeie `.env.example` para `.env` e preencha suas chaves.
-2. Dê dois cliques em `instalar_servidor.bat` (ele instala Node.js, dependências e dependências de áudio).
+2. Dê dois cliques em `instalar_servidor.bat`.
 3. Execute `iniciar_servidor.bat` para iniciar o bot.
 
 ---
@@ -57,9 +47,9 @@ Se preferir rodar direto no seu computador:
 |---|---|
 | `/transcrever` | Inicia/retoma a transcrição na chamada |
 | `/parar` | Pausa (o bot sai da call e fica pausado) |
-| `/resumo horas:3` | Resume as últimas horas da call e envia na sua DM via Gemini |
+| `/resumo horas:3` | Resume as últimas horas da call e envia na sua DM |
 | `/limpar` | Apaga mensagens antigas do canal `transcribr-` |
-| `/status` | Mostra o estado atual do bot e motores ativos |
+| `/status` | Mostra o estado atual do bot |
 
 ---
 

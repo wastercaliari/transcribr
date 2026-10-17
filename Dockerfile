@@ -17,8 +17,8 @@ RUN npm install --omit=dev
 # Copia os arquivos do projeto
 COPY . .
 
-# Modo produção e ordem padrão para nuvem (Groq Whisper ultra-rápido > Gemini como reserva)
+# Modo produção e ordem padrão para nuvem (Groq Whisper ultra-rápido gratuito)
 ENV NODE_ENV=production
-ENV STT_ORDER=groq,gemini
+ENV STT_ORDER=groq
 
 CMD ["npm", "start"]
