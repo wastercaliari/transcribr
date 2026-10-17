@@ -1,7 +1,48 @@
-# Vocabulario do grupo: um termo por linha (apelidos, nomes de jogos, girias, marcas...).
-# O bot passa esses termos ao Whisper e ao Gemini para acertar a grafia. Sem precisar reiniciar.
-# Linhas iniciadas por # sao comentarios. Exemplos (apague e coloque os seus):
-# Waster
-# Mano HG
-# vgzera
-# Valorant
+# Vocabulario do grupo: um termo por linha (apelidos, nomes de jogos, girias, marcas, tecnologias...).
+# O bot passa esses termos ao Whisper para condicionar o modelo a acertar a grafia exata.
+# As alteracoes valem na hora sem precisar reiniciar o bot.
+
+# Participantes e apelidos comuns
+WasterCaliari
+Waster
+Mano HG
+vgzera
+toddys limoeiro
+
+# Ferramentas, IA e Desenvolvimento
+Claude Code
+Codex
+ChatGPT
+OpenAI
+Ghidra
+Railway
+GitHub
+Docker
+Discord
+DAVE
+TranscriBR
+WebMCP
+MCP
+Node.js
+Python
+API
+LLM
+Whisper
+Groq
+
+# Jogos e gírias
+Valorant
+CS2
+Counter-Strike
+League of Legends
+LoL
+Fortnite
+GTA
+dropa
+rushar
+kitou
+nerfar
+build
+call
+trollar
+flankear

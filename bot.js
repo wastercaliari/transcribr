@@ -156,9 +156,9 @@ let localPending = 0;
 
 // ---------- Áudio ----------
 const RMS_THRESHOLD = 200;
-const MIN_SPEECH_SECONDS = 1.2;
+const MIN_SPEECH_SECONDS = 1.0;
 const TRIM_FRAME_BYTES = 640;
-const TRIM_PADDING_FRAMES = 5;
+const TRIM_PADDING_FRAMES = 9;
 
 function trimTrailingSilence(pcm) {
     const rmsOf = (start) => {
@@ -283,8 +283,10 @@ function vocabulary() {
     } catch { return []; }
 }
 const hintTerms = (names) => [...new Set([...names, ...vocabulary()])];
-const stylePrompt = (names) =>
-    `Conversa informal em português do Brasil entre amigos, com gírias e palavrões. Termos e nomes: ${hintTerms(names).join(', ')}.`.slice(0, 700);
+const stylePrompt = (names) => {
+    const terms = hintTerms(names).join(', ');
+    return `Transcrição em português do Brasil, pontuação correta, mantendo gírias, palavrões e termos: ${terms}.`.slice(0, 850);
+};
 
 // ---------- Motores de STT ----------
 // Cada motor devolve { text, conf, nsp, engine }
