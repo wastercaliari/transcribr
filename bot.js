@@ -54,7 +54,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const WEBHOOK_URL = process.env.TRANSCRIBR_WEBHOOK_URL || '';
 // Ordem dos motores: local, groq, gemini (os sem chave são ignorados)
 // Padrão: Groq (Whisper large-v3, o mais preciso e grátis) > Whisper local (ilimitado) > Gemini (último recurso)
-const STT_ORDER = (process.env.STT_ORDER || (GROQ_API_KEY ? 'groq,local,gemini' : 'local,gemini')).split(',').map(s => s.trim().toLowerCase());
+const STT_ORDER = (process.env.STT_ORDER || (GROQ_API_KEY ? 'groq,gemini' : 'gemini')).split(/[,\s]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
 const LOCAL_MAX_QUEUE = Number(process.env.LOCAL_MAX_QUEUE || 2);
 const LEAVE_GRACE_MS = 15_000;
 
@@ -405,6 +405,10 @@ async function runEngine(id, wav, names, seconds, userName, isLast) {
 
 async function transcribe(wav, names, seconds, userName) {
     const engines = availableEngines();
+    if (!engines.length) {
+        console.warn(`⚠️ Nenhum motor disponível! STT_ORDER: [${STT_ORDER.join(', ')}], Groq: ${!!GROQ_API_KEY}, Gemini: ${!!ai}`);
+        return '';
+    }
     // 1) Primeiro motor que responder
     let primary = null;
     for (let i = 0; i < engines.length; i++) {
