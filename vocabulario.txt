@@ -1,0 +1,7 @@
+# Vocabulario do grupo: um termo por linha (apelidos, nomes de jogos, girias, marcas...).
+# O bot passa esses termos ao Whisper e ao Gemini para acertar a grafia. Sem precisar reiniciar.
+# Linhas iniciadas por # sao comentarios. Exemplos (apague e coloque os seus):
+# Waster
+# Mano HG
+# vgzera
+# Valorant

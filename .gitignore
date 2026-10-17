@@ -1,0 +1,26 @@
+# Variáveis de ambiente e segredos (NUNCA SUBIR AO GITHUB)
+.env
+.env*.local
+*.env
+
+# Dependências Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs e estado de execução
+logs/
+*.log
+server_state.json
+transcript_log.jsonl
+
+# Python / Whisper local
+.venv/
+__pycache__/
+*.py[cod]
+
+# Arquivos temporários e zips
+*.zip
+.DS_Store
+Thumbs.db
