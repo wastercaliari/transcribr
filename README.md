@@ -39,16 +39,29 @@ Você precisará de apenas **2 coisas gratuitas** antes de iniciar:
 
 ---
 
-## 🚀 Como Hospedar 24/7 na Nuvem (Railway) - Recomendado
+## 🌐 Onde Hospedar? (Total Liberdade)
 
-A maneira mais prática de deixar o bot online 24 horas por dia sem precisar deixar o seu computador ligado:
+O TranscriBR é **100% agnóstico de infraestrutura**. Ele roda empacotado em **Node.js** e conta com um **`Dockerfile` otimizado** pronto para uso. Você pode hospedá-lo onde achar melhor:
 
-### Passo a Passo:
+- ☁️ **Serviços de Nuvem / PaaS:** [Railway](https://railway.app), [Render](https://render.com), [Fly.io](https://fly.io), [Koyeb](https://koyeb.com), etc.
+- 🖥️ **VPS / Servidores Dedicados:** Oracle Cloud (Free Tier), DigitalOcean, Hetzner, AWS, Google Cloud, Azure, etc.
+- 🐳 **Docker / Docker Compose:** No seu próprio servidor caseiro (Homelab, Raspberry Pi, Unraid, TrueNAS).
+- 💻 **No seu próprio PC:** Rodando localmente em segundo plano (Windows, Linux ou macOS).
+
+Basta apenas que o ambiente tenha as **variáveis de ambiente configuradas** (`DISCORD_BOT_TOKEN`, `GROQ_API_KEY` e `STT_ORDER=groq`).
+
+---
+
+## 🚀 Opção 1: Hospedagem 24/7 na Nuvem (Exemplo: Railway)
+
+O Railway é uma das formas mais simples e rápidas para deixar o bot online 24/7 sem precisar manter o PC ligado:
+
+### Passo a Passo no Railway:
 1. Faça um **Fork** deste repositório para a sua conta do GitHub (botão **Fork** no topo direito).
 2. Acesse o **[Railway.app](https://railway.app)** e faça login com o seu GitHub.
 3. Clique em **+ New Project** → **Deploy from GitHub repo** e selecione o repositório `transcribr`.
 4. Assim que o projeto carregar, clique no serviço dele no painel e vá na aba **Variables**.
-5. Adicione as 3 variáveis abaixo clicando em **Add Variable**:
+5. Adicione as variáveis abaixo clicando em **Add Variable**:
 
 | Nome da Variável | O que colar | Descrição |
 |---|---|---|
@@ -56,11 +69,34 @@ A maneira mais prática de deixar o bot online 24 horas por dia sem precisar dei
 | `GROQ_API_KEY` | `gsk_...` | Chave copiada no Console da Groq |
 | `STT_ORDER` | `groq` | Define o motor de voz como Groq Whisper |
 
-6. O Railway fará o build do container automaticamente em menos de 1 minuto e seu bot ficará **online imediatamente 24/7**!
+6. O Railway fará o build do container automaticamente e seu bot ficará **online imediatamente 24/7**!
+
+*(Caso use Render, Fly.io ou outra nuvem, o processo é idêntico: conecte o repositório GitHub e insira as mesmas 3 variáveis de ambiente nas configurações do serviço).*
 
 ---
 
-## 💻 Como Rodar Localmente no seu Computador
+## 💻 Opção 2: Hospedagem em VPS, Servidor Linux ou Docker
+
+Se você tem uma **VPS** (como Ubuntu/Debian) ou usa **Docker**:
+
+### Usando Docker:
+```bash
+# 1. Clone o repositório
+git clone https://github.com/SEU_USUARIO/transcribr.git
+cd transcribr
+
+# 2. Crie o arquivo .env com suas chaves (baseado no .env.example)
+cp .env.example .env
+# edite o .env com seu editor preferido (nano .env)
+
+# 3. Construa e suba o container em background:
+docker build -t transcribr .
+docker run -d --name transcribr --restart always --env-file .env transcribr
+```
+
+---
+
+## 🖥️ Opção 3: Como Rodar Localmente no seu Computador
 
 Se preferir rodar direto na sua máquina (Windows ou Linux):
 
