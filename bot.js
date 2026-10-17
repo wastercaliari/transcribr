@@ -424,6 +424,10 @@ function startListening(guild, session) {
                 if (IGNORED_WORDS.has(cleaned) || TAG_REGEX.test(raw)) return;
                 const text = applyCorrections(raw.replace(/<[^>]+>/g, '').trim());
                 if (!text) return;
+                if (isDuplicateTranscription(guild.id, userName, text)) {
+                    console.log(`🛡️ [Deduplicação] Fala repetida ignorada para ${userName}: "${text}"`);
+                    return;
+                }
                 logLine(guild.id, userName, text);
                 await postText(guild, `🎙️ **${userName}**: ${text}`);
                 console.log(`📤 [${userName}] "${text}"`);
@@ -434,41 +438,78 @@ function startListening(guild, session) {
     });
 }
 
+const recentTranscriptions = new Map(); // guildId -> Map(author -> { text, time })
+function isDuplicateTranscription(guildId, author, text) {
+    let guildMap = recentTranscriptions.get(guildId);
+    if (!guildMap) {
+        guildMap = new Map();
+        recentTranscriptions.set(guildId, guildMap);
+    }
+    const last = guildMap.get(author);
+    const now = Date.now();
+    if (last && last.text === text && (now - last.time) < 4000) {
+        return true;
+    }
+    guildMap.set(author, { text, time: now });
+    return false;
+}
+
+const joining = new Set();
 async function joinChannel(voiceChannel) {
     const guild = voiceChannel.guild;
-    const old = sessions.get(guild.id);
-    if (old) { try { old.connection.destroy(); } catch { /* ignora */ } sessions.delete(guild.id); }
-
-    const connection = joinVoiceChannel({
-        channelId: voiceChannel.id, guildId: guild.id,
-        adapterCreator: guild.voiceAdapterCreator, selfDeaf: false, selfMute: true
-    });
+    if (joining.has(guild.id)) return;
+    joining.add(guild.id);
+    let connection = null;
     try {
-        await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
-    } catch (e) {
-        try { connection.destroy(); } catch { /* ignora */ }
-        throw e;
-    }
-    const session = { connection, voiceChannel, listening: new Set() };
-    sessions.set(guild.id, session);
-
-    connection.on(VoiceConnectionStatus.Disconnected, async () => {
-        try {
-            await Promise.race([
-                entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
-                entersState(connection, VoiceConnectionStatus.Connecting, 5_000)
-            ]);
-        } catch {
-            try { connection.destroy(); } catch { /* ignora */ }
+        const old = sessions.get(guild.id);
+        if (old) {
+            if (old.voiceChannel.id === voiceChannel.id && old.connection.state.status === VoiceConnectionStatus.Ready) {
+                return;
+            }
+            try {
+                old.connection.receiver?.speaking?.removeAllListeners();
+                old.connection.destroy();
+            } catch { /* ignora */ }
+            sessions.delete(guild.id);
         }
-    });
-    connection.on(VoiceConnectionStatus.Destroyed, () => {
-        if (sessions.get(guild.id)?.connection === connection) sessions.delete(guild.id);
-        setTimeout(() => reconcile(guild), 3_000);
-    });
 
-    startListening(guild, session);
-    console.log(`✅ Entrei em "${voiceChannel.name}" (${humansIn(voiceChannel).length} pessoa(s))`);
+        connection = joinVoiceChannel({
+            channelId: voiceChannel.id, guildId: guild.id,
+            adapterCreator: guild.voiceAdapterCreator, selfDeaf: false, selfMute: true
+        });
+
+        try { connection.receiver?.speaking?.removeAllListeners(); } catch { /* ignora */ }
+
+        await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
+
+        const session = { connection, voiceChannel, listening: new Set() };
+        sessions.set(guild.id, session);
+
+        connection.on(VoiceConnectionStatus.Disconnected, async () => {
+            try {
+                await Promise.race([
+                    entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+                    entersState(connection, VoiceConnectionStatus.Connecting, 5_000)
+                ]);
+            } catch {
+                try { connection.destroy(); } catch { /* ignora */ }
+            }
+        });
+        connection.on(VoiceConnectionStatus.Destroyed, () => {
+            if (sessions.get(guild.id)?.connection === connection) {
+                sessions.delete(guild.id);
+                setTimeout(() => reconcile(guild), 3_000);
+            }
+        });
+
+        startListening(guild, session);
+        console.log(`✅ Entrei em "${voiceChannel.name}" (${humansIn(voiceChannel).length} pessoa(s))`);
+    } catch (e) {
+        try { connection?.destroy(); } catch { /* ignora */ }
+        throw e;
+    } finally {
+        joining.delete(guild.id);
+    }
 }
 
 function leave(guild) {
@@ -476,13 +517,16 @@ function leave(guild) {
     if (!s) return;
     sessions.delete(guild.id);
     history.delete(guild.id);
-    try { s.connection.destroy(); } catch { /* ignora */ }
+    try {
+        s.connection.receiver?.speaking?.removeAllListeners();
+        s.connection.destroy();
+    } catch { /* ignora */ }
     console.log(`👋 Saí de "${s.voiceChannel.name}"`);
 }
 
 const busy = new Set();
 async function reconcile(guild) {
-    if (busy.has(guild.id)) return;
+    if (busy.has(guild.id) || joining.has(guild.id)) return;
     busy.add(guild.id);
     try {
         const session = sessions.get(guild.id);
@@ -521,9 +565,10 @@ async function reconcile(guild) {
 }
 
 client.on('voiceStateUpdate', (oldS, newS) => {
+    if (newS.member?.id === client.user.id || oldS.member?.id === client.user.id) return;
+    if (newS.member?.user.bot) return;
     const guild = newS.guild || oldS.guild;
-    if (newS.member?.user.bot && newS.member.id !== client.user.id) return;
-    reconcile(guild);
+    if (guild) reconcile(guild);
 });
 
 // ---------- Comandos ----------
