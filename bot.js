@@ -530,8 +530,30 @@ client.on('voiceStateUpdate', (oldS, newS) => {
 const COMMANDS = [
     new SlashCommandBuilder().setName('transcrever').setDescription('Inicia a transcrição (entra na sua call, ou na que tiver gente).'),
     new SlashCommandBuilder().setName('parar').setDescription('Pausa o bot: sai da call e para de transcrever.'),
-    new SlashCommandBuilder().setName('resumo').setDescription('Resume as últimas horas de conversa e envia no seu privado.')
-        .addNumberOption(o => o.setName('horas').setDescription('Quantas horas para trás resumir (ex.: 3)').setMinValue(0.1).setMaxValue(168).setRequired(true)),
+    new SlashCommandBuilder().setName('resumo').setDescription('Resume a conversa de voz e envia no seu privado.')
+        .addStringOption(o => o.setName('estilo')
+            .setDescription('Estilo do resumo: Curto, Sóbrio ou Detalhado (padrão: Sóbrio)')
+            .setRequired(false)
+            .addChoices(
+                { name: '⚡ Curto (rápido e direto ao ponto)', value: 'curto' },
+                { name: '👔 Sóbrio (estruturado em ata de reunião)', value: 'sobrio' },
+                { name: '📖 Detalhado (completo com citações e conclusões)', value: 'detalhado' }
+            ))
+        .addNumberOption(o => o.setName('horas')
+            .setDescription('Quantidade de horas para trás (ex.: 2)')
+            .setMinValue(0)
+            .setMaxValue(168)
+            .setRequired(false))
+        .addNumberOption(o => o.setName('minutos')
+            .setDescription('Quantidade de minutos para trás (ex.: 30)')
+            .setMinValue(0)
+            .setMaxValue(1440)
+            .setRequired(false))
+        .addNumberOption(o => o.setName('segundos')
+            .setDescription('Quantidade de segundos para trás (ex.: 90)')
+            .setMinValue(0)
+            .setMaxValue(86400)
+            .setRequired(false)),
     new SlashCommandBuilder().setName('limpar').setDescription('Apaga TODAS as mensagens do canal de transcrição (transcribr-).')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
     new SlashCommandBuilder().setName('status').setDescription('Mostra se o bot está transcrevendo.')
@@ -624,27 +646,95 @@ async function handleLimpar(i) {
     }
 }
 
-async function handleResumo(i) {
-    const hours = i.options.getNumber('horas', true);
-    await i.deferReply({ flags: MessageFlags.Ephemeral });
-    if (!GROQ_API_KEY) return i.editReply('❌ Resumo indisponível: configure GROQ_API_KEY no .env.');
-    const entries = readLog(i.guildId, Date.now() - hours * 3600 * 1000);
-    if (!entries.length) return i.editReply(`Não há falas registradas nas últimas ${hours} hora(s).`);
+function formatTimeWindow(totalSec) {
+    const parts = [];
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = Math.round(totalSec % 60);
+    if (h > 0) parts.push(`${h} hora(s)`);
+    if (m > 0) parts.push(`${m} minuto(s)`);
+    if (s > 0 || parts.length === 0) parts.push(`${s} segundo(s)`);
+    return parts.join(' e ');
+}
 
-    const fmt = (e) => `[${new Date(e.t).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}] ${e.a}: ${e.x}`;
+async function handleResumo(i) {
+    const estilo = i.options.getString('estilo') || 'sobrio';
+    const hours = i.options.getNumber('horas') || 0;
+    const minutes = i.options.getNumber('minutos') || 0;
+    const seconds = i.options.getNumber('segundos') || 0;
+    const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
+
+    if (totalSeconds <= 0) {
+        return i.editReply(
+            '❌ Por favor, especifique um tempo válido usando pelo menos uma das opções: `horas`, `minutos` ou `segundos`.\n\n' +
+            '💡 **Exemplos de uso:**\n' +
+            '• `/resumo estilo:⚡ Curto segundos:90`\n' +
+            '• `/resumo estilo:👔 Sóbrio minutos:30`\n' +
+            '• `/resumo estilo:📖 Detalhado horas:2`\n' +
+            '• `/resumo horas:1 minutos:30`'
+        );
+    }
+
+    if (!GROQ_API_KEY) return i.editReply('❌ Resumo indisponível: configure GROQ_API_KEY no .env.');
+
+    const tempoDesc = formatTimeWindow(totalSeconds);
+    const sinceMs = Date.now() - (totalSeconds * 1000);
+    const entries = readLog(i.guildId, sinceMs);
+
+    if (!entries.length) {
+        return i.editReply(`Não há falas registradas nos últimos ${tempoDesc}.`);
+    }
+
+    const fmt = (e) => `[${new Date(e.t).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}] ${e.a}: ${e.x}`;
     let transcript = entries.map(fmt).join('\n');
     const MAX_CHARS = 300_000;
     if (transcript.length > MAX_CHARS) transcript = transcript.slice(-MAX_CHARS);
 
+    let estiloInstrucao = '';
+    let estiloNome = '';
+    if (estilo === 'curto') {
+        estiloNome = 'Curto ⚡';
+        estiloInstrucao =
+`- OBJETIVO: Resumo rápido do que aconteceu na call.
+- FORMATO: Extremamente direto, conciso e sem enrolação.
+- Foque em 1 ou 2 parágrafos curtos ou bullet points com os principais acontecimentos.
+- Ideal para quem só quer saber em segundos o que perdeu.`;
+    } else if (estilo === 'detalhado') {
+        estiloNome = 'Detalhado 📖';
+        estiloInstrucao =
+`- OBJETIVO: Resumo completo e rico em detalhes com citações e conclusões.
+- FORMATO: Cobertura aprofundada com estrutura em tópicos detalhados.
+- Inclua:
+  1. Panorama Geral e Contexto
+  2. Discussões e Temas Abordados em Detalhes
+  3. Citações e Posicionamentos (quem disse o quê, argumentos e pontos de vista)
+  4. Acordos, Decisões e Conclusões Finais
+  5. Notas Adicionais e Momentos de Destaque (combinados, ideias ou piadas marcantes)
+- Não poupe detalhes importantes trazidos pelos participantes.`;
+    } else {
+        estiloNome = 'Sóbrio 👔';
+        estiloInstrucao =
+`- OBJETIVO: Resumo bem estruturado do que houve na reunião (estilo ata executiva).
+- FORMATO: Formal, limpo, equilibrado e direto ao ponto.
+- Estrutura esperada:
+  1. Panorama Geral (visão sintética da reunião em 2-3 linhas)
+  2. Principais Assuntos e Discussões (em tópicos claros e objetivos)
+  3. Decisões, Alinhamentos e Responsáveis
+- Tom profissional e focado em produtividade.`;
+    }
+
     const prompt =
-        `Abaixo está a transcrição automática (pode conter erros de reconhecimento) de conversas de voz entre amigos num servidor do Discord, ` +
-        `das últimas ${hours} hora(s). Faça um resumo em português do Brasil, claro e objetivo:
-` +
-        `- comece com 2-3 linhas sobre o panorama geral;
-- depois liste os principais assuntos e decisões em tópicos curtos, citando quem disse o quê quando for relevante;
-` +
-        `- mencione combinados, planos e piadas marcantes;
-- não invente nada que não esteja na transcrição; ignore trechos incompreensíveis.
+`Abaixo está a transcrição automática de falas de voz de uma chamada no Discord dos últimos ${tempoDesc}.
+Faça um resumo em português do Brasil seguindo RIGOROSAMENTE as orientações de estilo abaixo:
+
+${estiloInstrucao}
+
+DIRETRIZES DE FIDELIDADE:
+- Baseie-se ESTRITAMENTE na transcrição fornecida.
+- Não invente nada que não esteja no texto; ignore trechos ininteligíveis, chiados ou ruídos soltos.
+- Seja fiel aos nomes das pessoas que falaram e aos assuntos abordados.
 
 TRANSCRIÇÃO:
 ${transcript}`;
@@ -655,9 +745,7 @@ ${transcript}`;
     if (!summary) return i.editReply('❌ A IA não retornou resumo.');
 
     try {
-        const head = `📝 **Resumo das últimas ${hours} hora(s)** — ${entries.length} fala(s) *(gerado por ${result.model})*
-
-`;
+        const head = `📝 **Resumo [${estiloNome}] dos últimos ${tempoDesc}** — ${entries.length} fala(s) *(gerado por ${result.model})*\n\n`;
         for (const part of splitMessage(head + summary)) await i.user.send(part);
         await i.editReply('📬 Resumo enviado no seu privado.');
     } catch {

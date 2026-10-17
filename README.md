@@ -129,9 +129,14 @@ Se preferir rodar direto na sua máquina (Windows ou Linux):
 |---|---|
 | `/transcrever` | Faz o bot entrar na sua chamada de voz atual e começar a transcrever. |
 | `/parar` | Pausa a transcrição e faz o bot sair da call. |
-| `/resumo horas:3` | Gera um resumo estruturado com tópicos e decisões das últimas horas e envia na sua DM. |
+| `/resumo [estilo] [horas] [minutos] [segundos]` | Gera um resumo inteligente na sua DM. Escolha o estilo (**⚡ Curto**, **👔 Sóbrio** ou **📖 Detalhado**) e a janela de tempo exata (horas, minutos ou segundos). |
 | `/limpar` | Apaga o histórico de transcrições do canal `transcribr-` *(requer permissão de Gerenciar Mensagens)*. |
 | `/status` | Exibe se o bot está ativo, pausado e quais motores estão conectados. |
+
+### 💡 Exemplos do `/resumo`:
+- `/resumo estilo:⚡ Curto segundos:90` — Resumo ultra-rápido do que rolou no último minuto e meio.
+- `/resumo estilo:👔 Sóbrio minutos:30` — Ata estruturada dos últimos 30 minutos de reunião.
+- `/resumo estilo:📖 Detalhado horas:2` — Resumo profundo com citações, discussões e conclusões das últimas 2 horas.
 
 ---
 
