@@ -638,12 +638,55 @@ function splitMessage(text, max = 1900) {
     return parts;
 }
 
-async function geminiText(prompt) {
-    try {
-        return (await ai.models.generateContent({ model: 'gemini-3.5-flash', config: { temperature: 0.3 }, contents: prompt })).text;
-    } catch {
-        return (await ai.models.generateContent({ model: 'gemini-3.5-flash-lite', config: { temperature: 0.3 }, contents: prompt })).text;
+async function groqChatText(prompt) {
+    if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY não configurada');
+    const models = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b'];
+    for (const model of models) {
+        try {
+            const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${GROQ_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model,
+                    temperature: 0.3,
+                    messages: [{ role: 'user', content: prompt }]
+                }),
+                signal: AbortSignal.timeout(30_000)
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                const content = data.choices?.[0]?.message?.content;
+                if (content) return { text: content.trim(), model: `Groq (${model})` };
+            }
+        } catch (e) {
+            console.warn(`Groq chat ${model} falhou:`, e.message);
+        }
     }
+    throw new Error('Modelos de texto da Groq indisponíveis no momento.');
+}
+
+async function summarizeText(prompt) {
+    if (ai) {
+        try {
+            const t = (await ai.models.generateContent({ model: 'gemini-3.5-flash', config: { temperature: 0.3 }, contents: prompt })).text;
+            if (t) return { text: t.trim(), model: 'Gemini 3.5 Flash' };
+        } catch (e1) {
+            console.warn('Gemini 3.5 Flash falhou para resumo:', e1.message);
+            try {
+                const t2 = (await ai.models.generateContent({ model: 'gemini-3.5-flash-lite', config: { temperature: 0.3 }, contents: prompt })).text;
+                if (t2) return { text: t2.trim(), model: 'Gemini 3.5 Flash Lite' };
+            } catch (e2) {
+                console.warn('Gemini 3.5 Flash Lite falhou para resumo, acionando fallback Groq:', e2.message);
+            }
+        }
+    }
+    if (GROQ_API_KEY) {
+        return await groqChatText(prompt);
+    }
+    throw new Error('Nenhum modelo disponível para gerar o resumo (configure GEMINI_API_KEY ou GROQ_API_KEY).');
 }
 
 // Apaga todas as mensagens do canal "transcribr-" (em lote as com menos de 14 dias, uma a uma as mais antigas)
@@ -685,7 +728,7 @@ async function handleLimpar(i) {
 async function handleResumo(i) {
     const hours = i.options.getNumber('horas', true);
     await i.deferReply({ flags: MessageFlags.Ephemeral });
-    if (!ai) return i.editReply('❌ Resumo indisponível: GEMINI_API_KEY não configurada no .env.');
+    if (!ai && !GROQ_API_KEY) return i.editReply('❌ Resumo indisponível: configure GEMINI_API_KEY ou GROQ_API_KEY.');
     const entries = readLog(i.guildId, Date.now() - hours * 3600 * 1000);
     if (!entries.length) return i.editReply(`Não há falas registradas nas últimas ${hours} hora(s).`);
 
@@ -707,13 +750,13 @@ async function handleResumo(i) {
 TRANSCRIÇÃO:
 ${transcript}`;
 
-    let summary;
-    try { summary = await geminiText(prompt); } catch (e) { return i.editReply(`❌ O Gemini falhou: ${e.message}`); }
-    summary = (summary || '').trim();
-    if (!summary) return i.editReply('❌ O Gemini não retornou resumo.');
+    let result;
+    try { result = await summarizeText(prompt); } catch (e) { return i.editReply(`❌ Erro ao gerar resumo: ${e.message}`); }
+    const summary = (result?.text || '').trim();
+    if (!summary) return i.editReply('❌ A IA não retornou resumo.');
 
     try {
-        const head = `📝 **Resumo das últimas ${hours} hora(s)** — ${entries.length} fala(s)
+        const head = `📝 **Resumo das últimas ${hours} hora(s)** — ${entries.length} fala(s) *(gerado por ${result.model})*
 
 `;
         for (const part of splitMessage(head + summary)) await i.user.send(part);
