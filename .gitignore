@@ -2,6 +2,7 @@
 .env
 .env*.local
 *.env
+Railway*.txt
 
 # Dependências Node.js
 node_modules/
