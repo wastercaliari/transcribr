@@ -3,6 +3,8 @@
 .env*.local
 *.env
 Railway*.txt
+ChatGPT*.txt
+*API*.txt
 
 # Dependências Node.js
 node_modules/

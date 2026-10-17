@@ -51,6 +51,7 @@ const { GoogleGenAI } = require('@google/genai');
 const DISCORD_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const WEBHOOK_URL = process.env.TRANSCRIBR_WEBHOOK_URL || '';
 // Ordem dos motores: local, groq, gemini (os sem chave são ignorados)
 // Padrão: Groq (Whisper large-v3, o mais preciso e grátis) > Whisper local (ilimitado) > Gemini (último recurso)
@@ -668,7 +669,49 @@ async function groqChatText(prompt) {
     throw new Error('Modelos de texto da Groq indisponíveis no momento.');
 }
 
+async function openaiChatText(prompt) {
+    if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY não configurada');
+    const models = ['gpt-5.6-luna', 'gpt-6-luna', 'gpt-5.4-mini'];
+    for (const model of models) {
+        try {
+            const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model,
+                    temperature: 0.3,
+                    messages: [{ role: 'user', content: prompt }]
+                }),
+                signal: AbortSignal.timeout(45_000)
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                const content = data.choices?.[0]?.message?.content;
+                if (content) return { text: content.trim(), model: `OpenAI (${model})` };
+            } else {
+                const errData = await resp.json().catch(() => ({}));
+                console.warn(`OpenAI ${model} respondeu erro (${resp.status}):`, errData.error?.message || errData);
+            }
+        } catch (e) {
+            console.warn(`OpenAI ${model} falhou:`, e.message);
+        }
+    }
+    throw new Error('Modelos da OpenAI indisponíveis ou sem créditos.');
+}
+
 async function summarizeText(prompt) {
+    // 1) Prioridade Máxima: GPT-5.6 Luna (OpenAI)
+    if (OPENAI_API_KEY) {
+        try {
+            return await openaiChatText(prompt);
+        } catch (eOpenAI) {
+            console.warn('OpenAI (GPT-5.6 Luna) falhou para resumo, acionando fallback:', eOpenAI.message);
+        }
+    }
+    // 2) Segundo recurso: Google Gemini
     if (ai) {
         try {
             const t = (await ai.models.generateContent({ model: 'gemini-3.5-flash', config: { temperature: 0.3 }, contents: prompt })).text;
@@ -683,10 +726,11 @@ async function summarizeText(prompt) {
             }
         }
     }
+    // 3) Terceiro recurso: Groq (OpenAI GPT-OSS 120B / Qwen)
     if (GROQ_API_KEY) {
         return await groqChatText(prompt);
     }
-    throw new Error('Nenhum modelo disponível para gerar o resumo (configure GEMINI_API_KEY ou GROQ_API_KEY).');
+    throw new Error('Nenhum modelo disponível para gerar o resumo (configure OPENAI_API_KEY, GEMINI_API_KEY ou GROQ_API_KEY).');
 }
 
 // Apaga todas as mensagens do canal "transcribr-" (em lote as com menos de 14 dias, uma a uma as mais antigas)
@@ -728,7 +772,7 @@ async function handleLimpar(i) {
 async function handleResumo(i) {
     const hours = i.options.getNumber('horas', true);
     await i.deferReply({ flags: MessageFlags.Ephemeral });
-    if (!ai && !GROQ_API_KEY) return i.editReply('❌ Resumo indisponível: configure GEMINI_API_KEY ou GROQ_API_KEY.');
+    if (!OPENAI_API_KEY && !ai && !GROQ_API_KEY) return i.editReply('❌ Resumo indisponível: configure OPENAI_API_KEY, GEMINI_API_KEY ou GROQ_API_KEY.');
     const entries = readLog(i.guildId, Date.now() - hours * 3600 * 1000);
     if (!entries.length) return i.editReply(`Não há falas registradas nas últimas ${hours} hora(s).`);
 
