@@ -17,3 +17,4 @@
 2026-10-18 [DONE] @bot.js Sincronização automática das atas técnicas do /resumo direto no Confluence space TBR via REST API | why: governança corporativa e histórico institucional indexado (I-2)
 2026-10-18 [RULE] @Jira Sempre que pegar uma tarefa em 'A fazer' no Kanban, transicionar imediatamente para 'Em andamento' antes de iniciar codificação/testes | why: diretriz explícita do usuário para visibilidade em tempo real do progresso
 2026-10-18 [DONE] @bot.js Fixação de canal de voz (state.targetChannels) e eliminação de race condition em reconexão de voz | why: impedir que o bot migre indevidamente para outras calls com mais participantes (SCRUM-52)
+2026-10-18 [DONE] @Jira Criação do Quadro Kanban "Ideias & Sugestões" (Board ID: 2), criação de 3 novos status de ciclo de vida e cadastro de 8 novas ideias (SCRUM-53 a SCRUM-60) | why: esteira contínua de inovação e ideação solicitada pelo usuário
