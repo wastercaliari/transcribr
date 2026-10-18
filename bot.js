@@ -619,8 +619,9 @@ function splitMessage(text, max = 1900) {
 }
 
 async function groqChatText(prompt) {
-    if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY não configurada');
-    const models = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b'];
+    if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY não configurada no .env.');
+    const models = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'];
+    let lastError = '';
     for (const model of models) {
         try {
             const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -632,20 +633,27 @@ async function groqChatText(prompt) {
                 body: JSON.stringify({
                     model,
                     temperature: 0.3,
+                    max_tokens: 1500,
                     messages: [{ role: 'user', content: prompt }]
                 }),
-                signal: AbortSignal.timeout(30_000)
+                signal: AbortSignal.timeout(35_000)
             });
             if (resp.ok) {
                 const data = await resp.json();
                 const content = data.choices?.[0]?.message?.content;
                 if (content) return { text: content.trim(), model: `Groq (${model})` };
+            } else {
+                const errData = await resp.json().catch(() => ({}));
+                const msg = errData?.error?.message || (await resp.text().catch(() => '')) || `HTTP ${resp.status}`;
+                lastError = msg;
+                console.warn(`Groq chat ${model} falhou (${resp.status}): ${msg}`);
             }
         } catch (e) {
+            lastError = e.message;
             console.warn(`Groq chat ${model} falhou:`, e.message);
         }
     }
-    throw new Error('Modelos de texto da Groq indisponíveis no momento.');
+    throw new Error(`Modelos de texto da Groq indisponíveis no momento (${lastError || 'limite temporário'}). Aguarde alguns instantes e tente novamente.`);
 }
 
 async function summarizeText(prompt) {
@@ -732,10 +740,27 @@ async function handleResumo(i) {
         return i.editReply(`Não há falas registradas nos últimos ${tempoDesc}.`);
     }
 
-    const fmt = (e) => `[${new Date(e.t).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}] ${e.a}: ${e.x}`;
-    let transcript = entries.map(fmt).join('\n');
-    const MAX_CHARS = 300_000;
-    if (transcript.length > MAX_CHARS) transcript = transcript.slice(-MAX_CHARS);
+    const fmt = (e) => `[${new Date(e.t).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}] ${e.a}: ${e.x}`;
+    const transcriptLines = entries.map(fmt);
+    let transcript = transcriptLines.join('\n');
+    let avisoAmostragem = '';
+
+    // Limite seguro de 18.000 caracteres para respeitar o teto gratuito de 8.000 TPM da Groq
+    const MAX_CHARS = 18_000;
+    let falasProcessadas = entries.length;
+    if (transcript.length > MAX_CHARS) {
+        const keepLines = [];
+        let currLen = 0;
+        for (let idx = transcriptLines.length - 1; idx >= 0; idx--) {
+            const line = transcriptLines[idx];
+            if (currLen + line.length + 1 > MAX_CHARS) break;
+            keepLines.unshift(line);
+            currLen += line.length + 1;
+        }
+        transcript = keepLines.join('\n');
+        falasProcessadas = keepLines.length;
+        avisoAmostragem = ` *(analisadas as ${falasProcessadas} falas mais recentes de ${entries.length} para respeitar a cota gratuita)*`;
+    }
 
     let estiloInstrucao = '';
     let estiloNome = '';
@@ -790,7 +815,7 @@ ${transcript}`;
     if (!summary) return i.editReply('❌ A IA não retornou resumo.');
 
     try {
-        const head = `📝 **Resumo [${estiloNome}] dos últimos ${tempoDesc}** — ${entries.length} fala(s) *(gerado por ${result.model})*\n\n`;
+        const head = `📝 **Resumo [${estiloNome}] dos últimos ${tempoDesc}** — ${falasProcessadas} fala(s)${avisoAmostragem} *(gerado por ${result.model})*\n\n`;
         for (const part of splitMessage(head + summary)) await i.user.send(part);
         await i.editReply('📬 Resumo enviado no seu privado.');
     } catch {
