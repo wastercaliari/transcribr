@@ -24,3 +24,4 @@
 2026-10-18 [DONE] @Jira Vinculação completa de 48 cards (SCRUM-5 a SCRUM-52) com branches e commits via GitHub for Atlassian e Remote Links API | why: indexação nativa no painel de Desenvolvimento do Jira
 2026-10-18 [DECISION] @Confluence Homologação e publicação do ADR-011 sobre rastreabilidade nativa e branches dedicadas por ticket | why: manter Bíblia do Projeto (page 360453) atualizada
 2026-10-18 [DONE] @src/audio_recorder.js Gravação e exportação do arquivo de áudio WAV consolidado pós-chamada (/audio e /resumo) | why: auditoria e conformidade sonora (SCRUM-53) (I-9)
+2026-10-18 [RULE] @github Formalização da abertura obrigatória de Pull Request (gh pr create) e esteira GitHub Actions CI (.github/workflows/ci.yml) antes de merge em main | why: boas práticas de CI/CD e governança empresarial solicitadas pelo usuário

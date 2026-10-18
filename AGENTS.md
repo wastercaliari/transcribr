@@ -14,7 +14,7 @@ A partir de agora, **TODA e QUALQUER** alteração de código, nova funcionalida
 - **Commits Semânticos & Rastreáveis**: Utilize o padrão *Conventional Commits* (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, etc.) incluindo obrigatoriamente a chave do ticket (ex.: `feat: gravar áudio consolidado (SCRUM-53)`).
 - **Estratégia de Branches por Card do Jira**: Desenvolva funcionalidades em branches dedicadas isolando o escopo de cada ticket: `<tipo>/<TICKET-KEY>-<descricao>` (ex.: `feat/SCRUM-53-audio-wav-export`).
 - **Vinculação Automática no Jira**: O hook post-commit (`scripts/link_jira_github.js`) anexa automaticamente os links interativos da branch e do commit diretamente no card do Jira.
-- **Sincronização a Cada Passo**: Realize o `git push origin <branch>` e o merge em `main` com `git push origin main` imediatamente a cada passo concluído.
+- **Abertura Obrigatória de Pull Request & Esteira CI/CD**: Após `git push origin <branch>`, crie obrigatoriamente um Pull Request formal no GitHub via `gh pr create --title "<tipo>: <descricao> (<TICKET-KEY>)" --body "..."` para acionar a esteira de CI do GitHub Actions (`.github/workflows/ci.yml`) e vincular o PR no painel nativo de Desenvolvimento do Jira. O merge em `main` deve ser concluído via `gh pr merge` após os testes da esteira passarem.
 - **Segurança Absoluta**: NUNCA commite arquivos `.env`, tokens privados (`Atlassian*.txt`, `Railway*.txt`) ou pastas de configuração local (`.agents/`). O `.gitignore` deve ser estritamente preservado.
 
 ---
