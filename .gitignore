@@ -27,5 +27,6 @@ __pycache__/
 
 # Arquivos temporários e zips
 *.zip
+scratch/
 .DS_Store
 Thumbs.db

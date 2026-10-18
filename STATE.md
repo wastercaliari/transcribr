@@ -1,7 +1,7 @@
 # STATE
-Goal: Opera√ß√£o 24/7 e evolu√ß√£o cont√≠nua do TranscriBR com alta precis√£o e governan√ßa
-Done: setup inicial, DAVE E2EE, Groq Whisper, atas t√©cnicas /resumo, B√≠blia no Confluence, Epics no Jira, RULES 16.4 e revisor
-Next: Operar conforme as diretrizes do mentor e registrar todas as altera√ß√µes
+Goal: OperaÁ„o 24/7 e evoluÁ„o contÌnua do TranscriBR com alta precis„o e governanÁa
+Done: setup inicial, DAVE E2EE, Groq Whisper, atas tÈcnicas /resumo, BÌblia no Confluence, Epics no Jira, RULES 16.4, revis„o independente, sincronizaÁ„o do Kanban e enriquecimento de 8 itens de backlog
+Next: Implementar testes unit·rios para o pipeline de ·udio DSP (SCRUM-46 / I-3) ou bot„o interativo /resumo (SCRUM-44 / I-1)
 Blockers: nenhum
 Failed (what was tried, error type and message): see CHANGELOG.md
 Rules (business rules the user gave): see CHANGELOG.md
