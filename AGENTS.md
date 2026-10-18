@@ -28,6 +28,7 @@ A partir de agora, **TODA e QUALQUER** alteração de código, nova funcionalida
   - `SCRUM-33`: Infraestrutura, DevOps & Deploy 24/7 (Railway).
   - `SCRUM-38`: Integrações Enterprise & Ecossistema Atlassian (Confluence & Jira).
 - **Procedimento Obrigatório a Cada Passo**:
+  - **Transição Imediata para 'Em andamento':** Sempre que pegar ou selecionar qualquer tarefa do Kanban ('A fazer') para executar, transicione-a OBRIGATORIAMENTE para 'Em andamento' no Jira antes de iniciar a escrita de código ou testes.
   - Toda tarefa tocada deve ter seu status atualizado no Kanban (colunas 'A fazer', 'Em andamento' ou 'Concluído').
   - Mantenha a alocação obrigatória na Sprint ativa (ex.: 'SCRUM Sprint 0') para exibição contínua no Quadro.
   - Toda nova tarefa, ideia ou débito técnico descoberto deve ser cadastrado e vinculado ao Epic correspondente.

@@ -149,7 +149,7 @@ Sem acesso aos arquivos:
 8. **Record & Tríplice Registro Contínuo.** A cada passo concluído, execute obrigatoriamente o ciclo completo nos 3 pilares:
    - **Memória local:** Adicionar linhas de log no `CHANGELOG.md` ([DONE], [FAIL], [DECISION], etc.), sobrescrever `STATE.md` e atualizar `IDEAS.md` em uma única chamada (veja Memory).
    - **Git / GitHub:** Realizar commit semântico (`feat:`, `fix:`, `docs:`, `test:`, etc.) e efetuar `git push origin main`.
-   - **Jira Software (SCRUM):** Atualizar status das tarefas no Kanban, garantir alocação na Sprint ativa e cadastrar novas ideias/débitos no backlog.
+   - **Jira Software (SCRUM):** Sempre que pegar ou selecionar uma tarefa em 'A fazer', envie-a OBRIGATORIAMENTE para 'Em andamento' no Kanban antes de iniciar código/testes. Ao concluir, atualize para 'Concluído', garanta alocação na Sprint ativa e cadastre novas ideias/débitos no backlog.
    - **Confluence (TBR):** Registrar novas decisões em ADRs (`07. Histórico de Versões & Decisões de Engenharia (ADRs)`) e atualizar a respectiva página canônica para manter a Bíblia do Projeto viva.
 9. **Deliver.** Use the answer format, with the Chronicler's ideas (see Suggestions).
 10. **Review.** When a feature is finished (not after every piece), or when the user asks, suggest an independent review in Próximo passo. The reviewer is a subagent or a new session that never saw this conversation and follows `.claude/agents/revisor.md`. It hunts for defects, writes tests that show them and a short report, and fixes nothing. You turn each finding into a new piece or an idea.

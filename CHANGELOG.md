@@ -15,3 +15,4 @@
 2026-10-18 [DONE] @bot.js Exporta��o da Ata T�cnica e transcri��o integral como anexo Markdown (.md) no Discord /resumo | why: download imediato e facilidade de arquivamento institucional (I-5)
 2026-10-18 [DONE] @bot.js Implementação de botões interativos no Discord (ActionRowBuilder/ButtonBuilder) para solicitação de ata com 1 clique | why: facilidade de uso e encerramento guiado de chamadas (I-1)
 2026-10-18 [DONE] @bot.js Sincronização automática das atas técnicas do /resumo direto no Confluence space TBR via REST API | why: governança corporativa e histórico institucional indexado (I-2)
+2026-10-18 [RULE] @Jira Sempre que pegar uma tarefa em 'A fazer' no Kanban, transicionar imediatamente para 'Em andamento' antes de iniciar codificação/testes | why: diretriz explícita do usuário para visibilidade em tempo real do progresso
