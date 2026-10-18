@@ -4,7 +4,9 @@
 *.env
 Railway*.txt
 ChatGPT*.txt
+Atlassian*.txt
 *API*.txt
+.agents/
 
 # Dependências Node.js
 node_modules/
