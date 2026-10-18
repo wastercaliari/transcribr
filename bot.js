@@ -457,6 +457,33 @@ function isDuplicateTranscription(guildId, author, text) {
     return false;
 }
 
+const reconnectAttempts = new Map(); // guildId -> { count, timer }
+
+function scheduleReconnection(guild, voiceChannel) {
+    clearTimeout(reconnectAttempts.get(guild.id)?.timer);
+    const prev = reconnectAttempts.get(guild.id)?.count || 0;
+    const count = prev + 1;
+    const delay = Math.min(1000 * Math.pow(2, count - 1), 30_000);
+    console.warn(`🔄 Reconectando à voz em "${voiceChannel.name}" (tentativa ${count}) em ${(delay / 1000).toFixed(1)}s...`);
+
+    const timer = setTimeout(async () => {
+        try {
+            await joinChannel(voiceChannel);
+            reconnectAttempts.delete(guild.id);
+        } catch (e) {
+            console.error(`Falha na reconexão (tentativa ${count}):`, e.message);
+            if (count < 5) {
+                scheduleReconnection(guild, voiceChannel);
+            } else {
+                console.error(`❌ Limite de reconexões atingido para "${guild.name}". Aguardando próximo ciclo.`);
+                reconnectAttempts.delete(guild.id);
+            }
+        }
+    }, delay);
+
+    reconnectAttempts.set(guild.id, { count, timer });
+}
+
 const joining = new Set();
 async function joinChannel(voiceChannel) {
     const guild = voiceChannel.guild;
@@ -484,6 +511,7 @@ async function joinChannel(voiceChannel) {
         try { connection.receiver?.speaking?.removeAllListeners(); } catch { /* ignora */ }
 
         await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
+        reconnectAttempts.delete(guild.id);
 
         const session = { connection, voiceChannel, listening: new Set() };
         sessions.set(guild.id, session);
@@ -494,6 +522,7 @@ async function joinChannel(voiceChannel) {
                     entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
                     entersState(connection, VoiceConnectionStatus.Connecting, 5_000)
                 ]);
+                reconnectAttempts.delete(guild.id);
             } catch {
                 try { connection.destroy(); } catch { /* ignora */ }
             }
@@ -501,7 +530,11 @@ async function joinChannel(voiceChannel) {
         connection.on(VoiceConnectionStatus.Destroyed, () => {
             if (sessions.get(guild.id)?.connection === connection) {
                 sessions.delete(guild.id);
-                setTimeout(() => reconcile(guild), 3_000);
+                if (!state.paused && humansIn(voiceChannel).length > 0) {
+                    scheduleReconnection(guild, voiceChannel);
+                } else {
+                    setTimeout(() => reconcile(guild), 3_000);
+                }
             }
         });
 
@@ -516,6 +549,8 @@ async function joinChannel(voiceChannel) {
 }
 
 function leave(guild) {
+    clearTimeout(reconnectAttempts.get(guild.id)?.timer);
+    reconnectAttempts.delete(guild.id);
     const s = sessions.get(guild.id);
     if (!s) return;
     sessions.delete(guild.id);
