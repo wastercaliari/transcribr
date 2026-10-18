@@ -1,0 +1,3 @@
+#!/bin/sh
+# Sincroniza automaticamente o commit e a branch com os cards do Jira correspondentes
+node scripts/link_jira_github.js

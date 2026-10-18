@@ -11,9 +11,10 @@ A partir de agora, **TODA e QUALQUER** alteração de código, nova funcionalida
 ---
 
 ### 1. Versionamento no Git / GitHub
-- **Commits Semânticos**: Utilize o padrão *Conventional Commits* (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, etc.).
-- **Mensagens Claras**: Descreva o que mudou e o motivo técnico da alteração.
-- **Sincronização a Cada Passo**: Realize o `git push origin main` imediatamente a cada passo concluído.
+- **Commits Semânticos & Rastreáveis**: Utilize o padrão *Conventional Commits* (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, etc.) incluindo obrigatoriamente a chave do ticket (ex.: `feat: gravar áudio consolidado (SCRUM-53)`).
+- **Estratégia de Branches por Card do Jira**: Desenvolva funcionalidades em branches dedicadas isolando o escopo de cada ticket: `<tipo>/<TICKET-KEY>-<descricao>` (ex.: `feat/SCRUM-53-audio-wav-export`).
+- **Vinculação Automática no Jira**: O hook post-commit (`scripts/link_jira_github.js`) anexa automaticamente os links interativos da branch e do commit diretamente no card do Jira.
+- **Sincronização a Cada Passo**: Realize o `git push origin <branch>` e o merge em `main` com `git push origin main` imediatamente a cada passo concluído.
 - **Segurança Absoluta**: NUNCA commite arquivos `.env`, tokens privados (`Atlassian*.txt`, `Railway*.txt`) ou pastas de configuração local (`.agents/`). O `.gitignore` deve ser estritamente preservado.
 
 ---
