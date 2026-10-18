@@ -575,15 +575,7 @@ client.on('voiceStateUpdate', (oldS, newS) => {
 const COMMANDS = [
     new SlashCommandBuilder().setName('transcrever').setDescription('Inicia a transcrição (entra na sua call, ou na que tiver gente).'),
     new SlashCommandBuilder().setName('parar').setDescription('Pausa o bot: sai da call e para de transcrever.'),
-    new SlashCommandBuilder().setName('resumo').setDescription('Resume a conversa de voz e envia no seu privado.')
-        .addStringOption(o => o.setName('estilo')
-            .setDescription('Estilo do resumo: Curto, Sóbrio ou Detalhado (padrão: Sóbrio)')
-            .setRequired(false)
-            .addChoices(
-                { name: '⚡ Curto (rápido e direto ao ponto)', value: 'curto' },
-                { name: '👔 Sóbrio (estruturado em ata de reunião)', value: 'sobrio' },
-                { name: '📖 Detalhado (completo com citações e conclusões)', value: 'detalhado' }
-            ))
+    new SlashCommandBuilder().setName('resumo').setDescription('Gera uma ata técnica da conversa de voz e envia no seu privado.')
         .addNumberOption(o => o.setName('horas')
             .setDescription('Quantidade de horas para trás (ex.: 2)')
             .setMinValue(0)
@@ -738,7 +730,6 @@ function formatDiscordMarkdown(text) {
 }
 
 async function handleResumo(i) {
-    const estilo = i.options.getString('estilo') || 'sobrio';
     const hours = i.options.getNumber('horas') || 0;
     const minutes = i.options.getNumber('minutos') || 0;
     const seconds = i.options.getNumber('segundos') || 0;
@@ -750,9 +741,9 @@ async function handleResumo(i) {
         return i.editReply(
             '❌ Por favor, especifique um tempo válido usando pelo menos uma das opções: `horas`, `minutos` ou `segundos`.\n\n' +
             '💡 **Exemplos de uso:**\n' +
-            '• `/resumo estilo:⚡ Curto segundos:90`\n' +
-            '• `/resumo estilo:👔 Sóbrio minutos:30`\n' +
-            '• `/resumo estilo:📖 Detalhado horas:2`\n' +
+            '• `/resumo segundos:90`\n' +
+            '• `/resumo minutos:30`\n' +
+            '• `/resumo horas:2`\n' +
             '• `/resumo horas:1 minutos:30`'
         );
     }
@@ -789,53 +780,32 @@ async function handleResumo(i) {
         avisoAmostragem = ` *(analisadas as ${falasProcessadas} falas mais recentes de ${entries.length} para respeitar a cota gratuita)*`;
     }
 
-    let estiloInstrucao = '';
-    let estiloNome = '';
-    if (estilo === 'curto') {
-        estiloNome = 'Curto ⚡';
-        estiloInstrucao =
-`- OBJETIVO: Resumo rápido do que aconteceu na call.
-- FORMATO: Extremamente direto, conciso e sem enrolação.
-- Foque em 1 ou 2 parágrafos curtos ou tópicos rápidos com os principais acontecimentos.
-- Ideal para quem só quer saber em segundos o que perdeu.`;
-    } else if (estilo === 'detalhado') {
-        estiloNome = 'Detalhado 📖';
-        estiloInstrucao =
-`- OBJETIVO: Resumo completo e rico em detalhes com citações e conclusões.
-- FORMATO: Cobertura aprofundada com estrutura em tópicos detalhados.
-- Inclua:
-  1. Panorama Geral e Contexto
-  2. Discussões e Temas Abordados em Detalhes
-  3. Citações e Posicionamentos (quem disse o quê, argumentos e pontos de vista)
-  4. Acordos, Decisões e Conclusões Finais
-  5. Notas Adicionais e Momentos de Destaque (combinados, ideias ou piadas marcantes)
-- Não poupe detalhes importantes trazidos pelos participantes.`;
-    } else {
-        estiloNome = 'Sóbrio 👔';
-        estiloInstrucao =
-`- OBJETIVO: Resumo bem estruturado do que houve na reunião (estilo ata executiva).
-- FORMATO: Formal, limpo, equilibrado e direto ao ponto.
-- Estrutura esperada:
-  1. Panorama Geral (visão sintética da reunião em 2-3 linhas)
-  2. Principais Assuntos e Discussões (em tópicos claros e objetivos)
-  3. Decisões, Alinhamentos e Responsáveis
-- Tom profissional e focado em produtividade.`;
-    }
-
     const prompt =
-`Abaixo está a transcrição automática de falas de voz de uma chamada no Discord dos últimos ${tempoDesc}.
-Faça um resumo em português do Brasil seguindo RIGOROSAMENTE as orientações de estilo abaixo:
+`Você é um assistente técnico sênior e redator de atas de engenharia e desenvolvimento de software.
+Abaixo está a transcrição bruta das falas de voz de uma chamada no Discord dos últimos ${tempoDesc}.
+Gere uma ATA TÉCNICA estruturada, analítica, profissional e direta ao ponto em português do Brasil.
 
-${estiloInstrucao}
+ESTRUTURA OBRIGATÓRIA DA ATA TÉCNICA:
 
-DIRETRIZES DE FORMATAÇÃO PARA DISCORD (MUITO IMPORTANTE):
-- NUNCA use tabelas Markdown com barras verticais ("|"). O Discord NÃO renderiza tabelas e elas ficam desformatadas e ilegíveis.
-- Organize todas as listas, decisões e comparações usando tópicos verticais (bullet points com "•" ou "-"), subtítulos e negrito ("**Participante**: Decisão").
+1. 📌 **Visão Geral e Contexto**:
+   - Resumo claro e conciso (2 a 3 linhas) do tema central, projeto ou propósito principal discutido na chamada.
 
-DIRETRIZES DE FIDELIDADE:
-- Baseie-se ESTRITAMENTE na transcrição fornecida.
-- Não invente nada que não esteja no texto; ignore trechos ininteligíveis, chiados ou ruídos soltos.
-- Seja fiel aos nomes das pessoas que falaram e aos assuntos abordados.
+2. 🛠️ **Arquitetura, Tecnologias e Ferramentas**:
+   - Tecnologias, plataformas, bibliotecas, ferramentas e processos citados (ex.: APIs, Docker, Git/GitHub, Jira, Notion, banco de dados, deploy, etc.).
+   - Ideias técnicas, arquiteturas propostas e argumentos levantados por cada participante.
+
+3. ⚠️ **Problemas, Impedimentos ou Gargalos**:
+   - Dificuldades técnicas relatadas, bugs, falhas em ferramentas, limitações de infraestrutura ou pontos de atenção discutidos.
+
+4. ✅ **Decisões Técnicas e Próximos Passos**:
+   - Decisões consolidadas e tarefas definidas.
+   - Atribuição de responsabilidades (quem ficou encarregado de quê, quando mencionado).
+
+DIRETRIZES DE RIGOR E FIDELIDADE:
+- Seja ESTRITAMENTE TÉCNICO, objetivo e factual. NÃO deduza sentimentos, não romanceie e não tente adivinhar piadas.
+- Baseie-se APENAS no conteúdo real presente na transcrição fornecida.
+- Ignore ruídos de fundo, trechos ininteligíveis, palavras desconexas de jogos ou interjeições sem conteúdo técnico.
+- NUNCA use tabelas Markdown com barras verticais ("|"). O Discord NÃO renderiza tabelas e elas ficam desformatadas. Use exclusivamente tópicos verticais (bullet points com "•"), subtítulos e negrito.
 
 TRANSCRIÇÃO:
 ${transcript}`;
@@ -847,9 +817,9 @@ ${transcript}`;
     const summary = formatDiscordMarkdown(rawSummary);
 
     try {
-        const head = `📝 **Resumo [${estiloNome}] dos últimos ${tempoDesc}** — ${falasProcessadas} fala(s)${avisoAmostragem} *(gerado por ${result.model})*\n\n`;
+        const head = `📝 **Resumo Técnico dos últimos ${tempoDesc}** — ${falasProcessadas} fala(s)${avisoAmostragem} *(gerado por ${result.model})*\n\n`;
         for (const part of splitMessage(head + summary)) await i.user.send(part);
-        await i.editReply('📬 Resumo enviado no seu privado.');
+        await i.editReply('📬 Resumo técnico enviado no seu privado.');
     } catch {
         await i.editReply('❌ Não consegui te enviar mensagem privada. Habilite DMs de membros do servidor (Configurações de privacidade) e tente de novo.');
     }
