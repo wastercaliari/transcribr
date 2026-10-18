@@ -44,7 +44,7 @@ if (require.main === module) {
 const {
     Client, GatewayIntentBits, ChannelType, MessageFlags,
     PermissionFlagsBits, REST, Routes, SlashCommandBuilder, WebhookClient,
-    AttachmentBuilder
+    AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle
 } = require('discord.js');
 const {
     joinVoiceChannel, EndBehaviorType, VoiceConnectionStatus, entersState
@@ -400,9 +400,9 @@ async function transcribe(wav, names, seconds, userName) {
 
 // ---------- Postagem ----------
 const textChannels = new Map();
-async function postText(guild, content) {
-    const opts = { content, flags: MessageFlags.SuppressNotifications };
-    if (webhook) {
+async function postText(guild, payload) {
+    const opts = typeof payload === 'string' ? { content: payload, flags: MessageFlags.SuppressNotifications } : payload;
+    if (webhook && !opts.components) {
         try { await webhook.send(opts); return; } catch (e) { console.warn('Webhook falhou:', e.message); }
     }
     let ch = textChannels.get(guild.id);
@@ -604,13 +604,32 @@ function leave(guild) {
     reconnectAttempts.delete(guild.id);
     const s = sessions.get(guild.id);
     if (!s) return;
+    const channelName = s.voiceChannel.name;
     sessions.delete(guild.id);
     history.delete(guild.id);
     try {
         s.connection.receiver?.speaking?.removeAllListeners();
         s.connection.destroy();
     } catch { /* ignora */ }
-    console.log(`👋 Saí de "${s.voiceChannel.name}"`);
+    console.log(`👋 Saí de "${channelName}"`);
+
+    // Posta botões interativos para geração de ata com 1 clique (SCRUM-44)
+    try {
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('btn_resumo_30m')
+                .setLabel('📝 Ata Técnica (30m)')
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId('btn_resumo_1h')
+                .setLabel('📋 Ata Técnica (1h)')
+                .setStyle(ButtonStyle.Secondary)
+        );
+        postText(guild, {
+            content: `👋 Chamada em **${channelName}** finalizada. Clique abaixo para receber a ata técnica no privado com 1 clique:`,
+            components: [row]
+        }).catch(() => {});
+    } catch { /* ignora */ }
 }
 
 const busy = new Set();
@@ -834,13 +853,10 @@ function formatDiscordMarkdown(text) {
     return cleaned.join('\n');
 }
 
-async function handleResumo(i) {
-    const hours = i.options.getNumber('horas') || 0;
-    const minutes = i.options.getNumber('minutos') || 0;
-    const seconds = i.options.getNumber('segundos') || 0;
-    const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
-
-    await i.deferReply({ flags: MessageFlags.Ephemeral });
+async function generateAndSendResumo(i, totalSeconds) {
+    if (!i.deferred && !i.replied) {
+        await i.deferReply({ flags: MessageFlags.Ephemeral });
+    }
 
     if (totalSeconds <= 0) {
         return i.editReply(
@@ -922,7 +938,7 @@ ${transcript}`;
     const summary = formatDiscordMarkdown(rawSummary);
 
     try {
-        const head = `📝 **Resumo Técnico dos últimos ${tempoDesc}** — ${falasProcessadas} fala(s)${avisoAmostragem} *(gerado por ${result.model})*\n\n`;
+        const head = `📋 **Resumo Técnico dos últimos ${tempoDesc}** — ${falasProcessadas} fala(s)${avisoAmostragem} *(gerado por ${result.model})*\n\n`;
         for (const part of splitMessage(head + summary)) {
             await i.user.send(part);
         }
@@ -953,7 +969,32 @@ ${transcript}`;
     }
 }
 
+async function handleResumo(i) {
+    const hours = i.options.getNumber('horas') || 0;
+    const minutes = i.options.getNumber('minutos') || 0;
+    const seconds = i.options.getNumber('segundos') || 0;
+    const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+    return await generateAndSendResumo(i, totalSeconds);
+}
+
 client.on('interactionCreate', async (i) => {
+    if (i.isButton()) {
+        try {
+            if (i.customId === 'btn_resumo_30m') {
+                await generateAndSendResumo(i, 1800);
+            } else if (i.customId === 'btn_resumo_1h') {
+                await generateAndSendResumo(i, 3600);
+            }
+        } catch (e) {
+            console.error('Erro no botão interativo:', e.message);
+            try {
+                (i.deferred || i.replied)
+                    ? await i.editReply(`❌ ${e.message}`)
+                    : await i.reply({ content: `❌ ${e.message}`, flags: MessageFlags.Ephemeral });
+            } catch { /* ignora */ }
+        }
+        return;
+    }
     if (!i.isChatInputCommand()) return;
     try {
         const guild = i.guild;

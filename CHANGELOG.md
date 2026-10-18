@@ -13,3 +13,4 @@
 2026-10-18 [DONE] @bot.js Implementação de política de reconexão de voz resiliente com backoff exponencial | why: evitar desconexões permanentes por oscilações transitórias no Discord Voice Gateway (I-7)
 2026-10-18 [DONE] @bot.js Módulo de telemetria e métricas de desempenho de transcrição no /status e /health | why: visibilidade de latência média, áudio processado e descarte de ruídos (I-4)
 2026-10-18 [DONE] @bot.js Exportação da Ata Técnica e transcrição integral como anexo Markdown (.md) no Discord /resumo | why: download imediato e facilidade de arquivamento institucional (I-5)
+2026-10-18 [DONE] @bot.js ImplementaÃ§Ã£o de botÃµes interativos no Discord (ActionRowBuilder/ButtonBuilder) para solicitaÃ§Ã£o de ata com 1 clique | why: facilidade de uso e encerramento guiado de chamadas (I-1)

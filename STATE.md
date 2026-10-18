@@ -1,7 +1,7 @@
 # STATE
-Goal: OperaÁ„o 24/7 e evoluÁ„o contÌnua do TranscriBR com alta precis„o e governanÁa
-Done: setup inicial, DAVE E2EE, Groq Whisper, atas tÈcnicas /resumo, BÌblia no Confluence, Epics no Jira, RULES 16.4, revis„o independente, sincronizaÁ„o do Kanban, Sprint 0 ativa, testes DSP (SCRUM-46), particionamento codeblocks (SCRUM-51), healthcheck HTTP (SCRUM-49), reconex„o resiliente (SCRUM-50), telemetria (SCRUM-47), anexo .md (SCRUM-48)
-Next: Implementar bot„o interativo no Discord para solicitar ata tÈcnica com 1 clique (SCRUM-44 / I-1)
+Goal: Opera√ß√£o 24/7 e evolu√ß√£o cont√≠nua do TranscriBR com alta precis√£o e governan√ßa
+Done: setup inicial, DAVE E2EE, Groq Whisper, atas t√©cnicas /resumo, B√≠blia no Confluence, Epics no Jira, RULES 16.4, revis√£o independente, sincroniza√ß√£o do Kanban, Sprint 0 ativa, testes DSP (SCRUM-46), particionamento codeblocks (SCRUM-51), healthcheck HTTP (SCRUM-49), reconex√£o resiliente (SCRUM-50), telemetria (SCRUM-47), anexo .md (SCRUM-48), bot√µes interativos Discord (SCRUM-44)
+Next: Sincroniza√ß√£o autom√°tica das atas do /resumo direto no Confluence (SCRUM-45 / I-2)
 Blockers: nenhum
 Failed (what was tried, error type and message): see CHANGELOG.md
 Rules (business rules the user gave): see CHANGELOG.md
