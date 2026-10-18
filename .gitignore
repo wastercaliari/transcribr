@@ -19,6 +19,8 @@ logs/
 *.log
 server_state.json
 transcript_log.jsonl
+*.sqlite*
+data/
 
 # Python / Whisper local
 .venv/
