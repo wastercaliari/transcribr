@@ -710,6 +710,33 @@ function formatTimeWindow(totalSec) {
     return parts.join(' e ');
 }
 
+function formatDiscordMarkdown(text) {
+    if (!text) return '';
+    const lines = text.split('\n');
+    const cleaned = [];
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        // Remove linhas separadoras de tabela: |---|---| ou |:---|:---|
+        if (/^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/.test(line)) {
+            continue;
+        }
+        // Converte linhas de tabela (| Item 1 | Item 2 |) em tópicos legíveis para Discord
+        if (line.startsWith('|') && line.endsWith('|')) {
+            const cells = line.split('|').map(c => c.trim()).filter(Boolean);
+            if (cells.length > 0) {
+                if (cells.length === 1) {
+                    cleaned.push(`• ${cells[0]}`);
+                } else {
+                    cleaned.push(`• **${cells[0]}**: ${cells.slice(1).join(' — ')}`);
+                }
+                continue;
+            }
+        }
+        cleaned.push(lines[i]);
+    }
+    return cleaned.join('\n');
+}
+
 async function handleResumo(i) {
     const estilo = i.options.getString('estilo') || 'sobrio';
     const hours = i.options.getNumber('horas') || 0;
@@ -769,7 +796,7 @@ async function handleResumo(i) {
         estiloInstrucao =
 `- OBJETIVO: Resumo rápido do que aconteceu na call.
 - FORMATO: Extremamente direto, conciso e sem enrolação.
-- Foque em 1 ou 2 parágrafos curtos ou bullet points com os principais acontecimentos.
+- Foque em 1 ou 2 parágrafos curtos ou tópicos rápidos com os principais acontecimentos.
 - Ideal para quem só quer saber em segundos o que perdeu.`;
     } else if (estilo === 'detalhado') {
         estiloNome = 'Detalhado 📖';
@@ -801,6 +828,10 @@ Faça um resumo em português do Brasil seguindo RIGOROSAMENTE as orientações 
 
 ${estiloInstrucao}
 
+DIRETRIZES DE FORMATAÇÃO PARA DISCORD (MUITO IMPORTANTE):
+- NUNCA use tabelas Markdown com barras verticais ("|"). O Discord NÃO renderiza tabelas e elas ficam desformatadas e ilegíveis.
+- Organize todas as listas, decisões e comparações usando tópicos verticais (bullet points com "•" ou "-"), subtítulos e negrito ("**Participante**: Decisão").
+
 DIRETRIZES DE FIDELIDADE:
 - Baseie-se ESTRITAMENTE na transcrição fornecida.
 - Não invente nada que não esteja no texto; ignore trechos ininteligíveis, chiados ou ruídos soltos.
@@ -811,8 +842,9 @@ ${transcript}`;
 
     let result;
     try { result = await summarizeText(prompt); } catch (e) { return i.editReply(`❌ Erro ao gerar resumo: ${e.message}`); }
-    const summary = (result?.text || '').trim();
-    if (!summary) return i.editReply('❌ A IA não retornou resumo.');
+    const rawSummary = (result?.text || '').trim();
+    if (!rawSummary) return i.editReply('❌ A IA não retornou resumo.');
+    const summary = formatDiscordMarkdown(rawSummary);
 
     try {
         const head = `📝 **Resumo [${estiloNome}] dos últimos ${tempoDesc}** — ${falasProcessadas} fala(s)${avisoAmostragem} *(gerado por ${result.model})*\n\n`;
