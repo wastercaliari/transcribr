@@ -43,7 +43,8 @@ if (require.main === module) {
 
 const {
     Client, GatewayIntentBits, ChannelType, MessageFlags,
-    PermissionFlagsBits, REST, Routes, SlashCommandBuilder, WebhookClient
+    PermissionFlagsBits, REST, Routes, SlashCommandBuilder, WebhookClient,
+    AttachmentBuilder
 } = require('discord.js');
 const {
     joinVoiceChannel, EndBehaviorType, VoiceConnectionStatus, entersState
@@ -922,8 +923,31 @@ ${transcript}`;
 
     try {
         const head = `📝 **Resumo Técnico dos últimos ${tempoDesc}** — ${falasProcessadas} fala(s)${avisoAmostragem} *(gerado por ${result.model})*\n\n`;
-        for (const part of splitMessage(head + summary)) await i.user.send(part);
-        await i.editReply('📬 Resumo técnico enviado no seu privado.');
+        for (const part of splitMessage(head + summary)) {
+            await i.user.send(part);
+        }
+
+        // Gera e anexa arquivo Markdown (.md) estruturado para download (SCRUM-48)
+        const timestampIso = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const mdFileName = `ata-tecnica-${timestampIso}.md`;
+        const mdDoc = Buffer.from(
+            `# Ata Técnica TranscriBR\n\n` +
+            `- **Janela de Tempo:** ${tempoDesc}\n` +
+            `- **Data:** ${new Date().toLocaleString('pt-BR')}\n` +
+            `- **Falas Analisadas:** ${falasProcessadas} de ${entries.length}\n` +
+            `- **Motor LLM:** ${result.model}\n\n` +
+            `---\n\n` +
+            `## Ata Estruturada\n\n` +
+            `${rawSummary}\n\n` +
+            `---\n\n` +
+            `## Transcrição Integral das Falas\n\n` +
+            `${transcriptLines.join('\n')}\n`,
+            'utf8'
+        );
+        const attachment = new AttachmentBuilder(mdDoc, { name: mdFileName });
+        await i.user.send({ content: '📎 **Arquivo Markdown (.md) da ata técnica anexado para download:**', files: [attachment] });
+
+        await i.editReply('📬 Resumo técnico e arquivo .md enviados no seu privado.');
     } catch {
         await i.editReply('❌ Não consegui te enviar mensagem privada. Habilite DMs de membros do servidor (Configurações de privacidade) e tente de novo.');
     }
