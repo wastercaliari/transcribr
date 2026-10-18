@@ -599,14 +599,30 @@ const COMMANDS = [
 ].map(c => c.toJSON());
 
 function splitMessage(text, max = 1900) {
+    if (!text) return [];
     const parts = [];
     let rest = text.trim();
     while (rest.length > max) {
         let cut = rest.lastIndexOf('\n', max);
         if (cut < max * 0.5) cut = rest.lastIndexOf(' ', max);
         if (cut < max * 0.5) cut = max;
-        parts.push(rest.slice(0, cut).trim());
+
+        let chunk = rest.slice(0, cut).trim();
         rest = rest.slice(cut).trim();
+
+        // Preserva paridade de blocos de código Markdown (```)
+        const codeBlockMatches = chunk.match(/```/g);
+        if (codeBlockMatches && codeBlockMatches.length % 2 !== 0) {
+            const lastCodeBlockIndex = chunk.lastIndexOf('```');
+            const afterBackticks = chunk.slice(lastCodeBlockIndex + 3);
+            const langMatch = afterBackticks.match(/^([a-zA-Z0-9_-]+)/);
+            const lang = langMatch ? langMatch[1] : '';
+
+            chunk += '\n```';
+            rest = '```' + lang + '\n' + rest;
+        }
+
+        parts.push(chunk);
     }
     if (rest) parts.push(rest);
     return parts;

@@ -5,4 +5,3 @@
 - I-5 [USER] Exportar Ata Técnica como anexo Markdown (.md) ou PDF no Discord | evidence: bot.js:821 particionamento de texto longo | value: leitura e arquivamento formal | cost: S
 - I-6 [SPEED] Servidor HTTP de healthcheck (/health) para probes de liveness no Railway | evidence: README.md:9 | value: monitoramento proativo de disponibilidade | cost: S
 - I-7 [RISK] Resiliência a reconexão de voz contra instabilidade de WebSocket do Discord | evidence: bot.js:488-503 reconexão básica | value: estabilidade contínua sem quedas | cost: M
-- I-8 [CODE] Aprimorar splitMessage para fechar e reabrir codeblocks em mensagens > 1900 chars | evidence: bot.js:599 | value: integridade visual de formatação no Discord | cost: S

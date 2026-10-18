@@ -61,6 +61,21 @@ describe('Text & Markdown Utilities', () => {
                 assert.ok(part.length <= 1000, `Parte excedeu limite: ${part.length}`);
             }
         });
+
+        it('deve fechar e reabrir blocos de código markdown quando particionar dentro de um codeblock', () => {
+            const codeLines = Array(40).fill('console.log("trecho de código extenso para ata técnica");').join('\n');
+            const markdownWithCode = '```javascript\n' + codeLines + '\n```';
+            const parts = splitMessage(markdownWithCode, 500);
+
+            assert.ok(parts.length > 1);
+            // Cada parte deve ter número par de ``` (ou seja, blocos devidamente fechados)
+            for (const part of parts) {
+                const matches = part.match(/```/g);
+                assert.ok(matches && matches.length % 2 === 0, `Parte com bloco aberto desbalanceado: ${part}`);
+            }
+            // A segunda parte deve iniciar com a reabertura do bloco com a linguagem
+            assert.ok(parts[1].startsWith('```javascript'), 'Segunda parte deveria reabrir o codeblock');
+        });
     });
 
     describe('isSuspicious', () => {

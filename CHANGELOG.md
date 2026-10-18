@@ -8,3 +8,4 @@
 2026-10-18 [DONE] @Jira Vinculação de 41 tarefas à Sprint 0 ativa (ID: 2) no Jira Software | why: exibir cards no Quadro ativo (board 1)
 2026-10-18 [RULE] @global Instituição da Regra 11 no RULES.md: Tríplice Registro Contínuo Obrigatório (Git, Jira e Confluence) executado a cada passo | why: diretriz explícita de governança contínua
 2026-10-18 [DONE] @tests/audio_dsp.test.js Implementação de suíte de testes unitários para DSP (High-Pass, AGC, Silence Trimming, WAV) e utilitários de texto | why: segurança contra regressões no pipeline de áudio (I-3)
+2026-10-18 [DONE] @bot.js Aprimoramento de splitMessage com garantia de paridade e reabertura de codeblocks Markdown | why: prevenir quebras visuais em atas técnicas longas no Discord (I-8)
