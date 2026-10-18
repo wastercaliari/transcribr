@@ -50,6 +50,12 @@ const {
     joinVoiceChannel, EndBehaviorType, VoiceConnectionStatus, entersState
 } = require('@discordjs/voice');
 const prism = require('prism-media');
+const {
+    recordAudioUtterance,
+    exportSessionAudioWav,
+    clearAudioSession,
+    getAudioSessionStats
+} = require('./src/audio_recorder.js');
 
 const DISCORD_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -482,6 +488,7 @@ function startListening(guild, session) {
                     return;
                 }
                 logLine(guild.id, userName, text);
+                recordAudioUtterance(guild.id, userName, preprocessAudio(pcm));
                 await postText(guild, `🎙️ **${userName}**: ${text}`);
                 console.log(`📤 [${userName}] "${text}"`);
                 recordTranscriptionMetric({ durationSec: seconds, latencyMs, engine: sttResult?.engine, posted: true });
@@ -755,7 +762,13 @@ const COMMANDS = [
             .setRequired(false)),
     new SlashCommandBuilder().setName('limpar').setDescription('Apaga TODAS as mensagens do canal de transcrição (transcribr-).')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
-    new SlashCommandBuilder().setName('status').setDescription('Mostra se o bot está transcrevendo.')
+    new SlashCommandBuilder().setName('status').setDescription('Mostra se o bot está transcrevendo.'),
+    new SlashCommandBuilder().setName('audio').setDescription('Exporta o áudio WAV consolidado das falas recentes da chamada.')
+        .addNumberOption(o => o.setName('minutos')
+            .setDescription('Minutos para trás (ex: 15). Se omitido, exporta toda a sessão recente.')
+            .setMinValue(1)
+            .setMaxValue(1440)
+            .setRequired(false))
 ].map(c => c.toJSON());
 
 function splitMessage(text, max = 1900) {
@@ -862,8 +875,9 @@ async function handleLimpar(i) {
             for (const m of old.values()) { await m.delete().catch(() => {}); total++; }
             if (total % 500 < 100) i.editReply(`🧹 Limpando... ${total} mensagens apagadas até agora.`).catch(() => {});
         }
+        clearAudioSession(i.guild.id);
         console.log(`🧹 /limpar: ${total} mensagens apagadas em #${ch.name}`);
-        await i.editReply(`🧹 Pronto! ${total} mensagem(ns) apagada(s) de <#${ch.id}>.`).catch(() => {});
+        await i.editReply(`🧹 Pronto! ${total} mensagem(ns) apagada(s) de <#${ch.id}> e buffer de áudio limpo.`).catch(() => {});
     } finally {
         cleaning = false;
     }
@@ -1160,6 +1174,23 @@ ${transcript}`;
         const attachment = new AttachmentBuilder(mdDoc, { name: mdFileName });
         await i.user.send({ content: '📎 **Arquivo Markdown (.md) da ata técnica anexado para download:**', files: [attachment] });
 
+        // Exportação de áudio WAV consolidado pós-chamada (SCRUM-53 / I-9)
+        let audioAviso = '';
+        try {
+            const audioData = exportSessionAudioWav(i.guildId, { maxSeconds: totalSeconds });
+            if (audioData && audioData.wavBuffer) {
+                const wavFileName = `audio-consolidado-${timestampIso}.wav`;
+                const audioAttachment = new AttachmentBuilder(audioData.wavBuffer, { name: wavFileName });
+                await i.user.send({
+                    content: `🎙️ **Áudio WAV consolidado anexado para auditoria (${audioData.durationSeconds}s / ${audioData.utteranceCount} trecho(s)):**`,
+                    files: [audioAttachment]
+                });
+                audioAviso = `\n🎙️ **Áudio consolidado enviado no privado (${audioData.durationSeconds}s).**`;
+            }
+        } catch (audioErr) {
+            console.warn('Falha ao exportar áudio consolidado no resumo:', audioErr.message);
+        }
+
         // Sincronização automática com o Confluence (SCRUM-45 / I-2)
         let confluenceAviso = '';
         try {
@@ -1178,7 +1209,7 @@ ${transcript}`;
             console.warn('Confluence auto-sync ignorado/falhou:', confErr.message);
         }
 
-        await i.editReply(`📬 Resumo técnico e arquivo .md enviados no seu privado.${confluenceAviso}`);
+        await i.editReply(`📬 Resumo técnico e anexos (.md e áudio) enviados no seu privado.${audioAviso}${confluenceAviso}`);
     } catch {
         await i.editReply('❌ Não consegui te enviar mensagem privada. Habilite DMs de membros do servidor (Configurações de privacidade) e tente de novo.');
     }
@@ -1190,6 +1221,25 @@ async function handleResumo(i) {
     const seconds = i.options.getNumber('segundos') || 0;
     const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
     return await generateAndSendResumo(i, totalSeconds);
+}
+
+async function handleAudio(i) {
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
+    const minutos = i.options.getNumber('minutos');
+    const totalSeconds = minutos ? minutos * 60 : 0;
+    const audioData = exportSessionAudioWav(i.guildId, { maxSeconds: totalSeconds });
+    if (!audioData || !audioData.wavBuffer) {
+        return await i.editReply('⚠️ Nenhum áudio gravado na sessão recente para este servidor.');
+    }
+    const timestampIso = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const wavFileName = `audio-consolidado-${timestampIso}.wav`;
+    const audioAttachment = new AttachmentBuilder(audioData.wavBuffer, { name: wavFileName });
+    const durMsg = `${audioData.durationSeconds}s de fala (${audioData.utteranceCount} trecho(s))`;
+    const speakersMsg = audioData.speakers.length > 0 ? ` • Participantes: ${audioData.speakers.join(', ')}` : '';
+    await i.editReply({
+        content: `🎙️ **Áudio WAV consolidado exportado:** ${durMsg}${speakersMsg}.\n*(Download direto no anexo abaixo)*`,
+        files: [audioAttachment]
+    });
 }
 
 client.on('interactionCreate', async (i) => {
@@ -1255,6 +1305,8 @@ client.on('interactionCreate', async (i) => {
                 `• Ruídos/alucinações filtrados: **${t.hallucinationsDiscarded}** (duplicações ignoradas: ${t.duplicatesSkipped})\n` +
                 `• Motores acionados: Groq (${t.engineUsage.groq}), Local (${t.engineUsage.local})`;
             await i.reply({ content: `${baseMsg}\n${teleMsg}`, flags: MessageFlags.Ephemeral });
+        } else if (i.commandName === 'audio') {
+            await handleAudio(i);
         }
     } catch (e) {
         console.error('Erro no comando:', e.message);
@@ -1388,6 +1440,11 @@ module.exports = {
     recordTranscriptionMetric,
     markdownToConfluenceStorage,
     syncAtaToConfluence,
-    selectTargetVoiceChannel
+    selectTargetVoiceChannel,
+    recordAudioUtterance,
+    exportSessionAudioWav,
+    clearAudioSession,
+    getAudioSessionStats,
+    handleAudio
 };
 

@@ -1,5 +1,4 @@
 # IDEAS (open, best first, max 10)
-- I-9 [USER] Gravação e exportação do arquivo de áudio WAV consolidado pós-chamada | evidence: bot.js:580 áudio é descartado após transcrição | value: auditoria e conferência auditiva | cost: M
 - I-10 [CODE] Persistência do buffer histórico de falas em SQLite ou Redis | evidence: bot.js:33 log de falas é resetado em reinício de container | value: histórico resistente a restarts | cost: M
 - I-11 [CODE] Diarização avançada e identificação de locutor por Voice Fingerprinting | evidence: bot.js:429 speaking.on agrupa por ID sem biometria acústica | value: precisão em sobreposição de vozes | cost: L
 - I-12 [USER] Dashboard Web corporativo em tempo real para monitoramento e telemetria | evidence: bot.js:1285 healthcheck HTTP apenas JSON bruto | value: interface gráfica para stakeholders | cost: M
