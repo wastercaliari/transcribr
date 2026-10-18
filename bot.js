@@ -30,13 +30,15 @@ for (const level of ['log', 'warn', 'error']) {
 
 // Trava de instância única
 const lockServer = net.createServer();
-lockServer.listen(49152, '127.0.0.1');
-lockServer.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-        console.log('JÁ EXISTE OUTRA INSTÂNCIA DO BOT RODANDO. Encerrando esta.');
-        process.exit(3);
-    }
-});
+if (require.main === module) {
+    lockServer.listen(49152, '127.0.0.1');
+    lockServer.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.log('JÁ EXISTE OUTRA INSTÂNCIA DO BOT RODANDO. Encerrando esta.');
+            process.exit(3);
+        }
+    });
+}
 
 const {
     Client, GatewayIntentBits, ChannelType, MessageFlags,
@@ -56,7 +58,7 @@ const LOCAL_MAX_QUEUE = Number(process.env.LOCAL_MAX_QUEUE || 2);
 const LEAVE_GRACE_MS = 15_000;
 
 // Código de saída 2 = erro de configuração (o iniciar_servidor.bat não fica reiniciando em loop)
-if (!DISCORD_TOKEN || /cole_o_token/i.test(DISCORD_TOKEN)) {
+if (require.main === module && (!DISCORD_TOKEN || /cole_o_token/i.test(DISCORD_TOKEN))) {
     console.error('ERRO: DISCORD_BOT_TOKEN não configurado no arquivo .env! Rode instalar_servidor.bat ou edite o .env.');
     process.exit(2);
 }
@@ -920,14 +922,28 @@ process.on('unhandledRejection', (e) => console.error('Rejeição não tratada:'
 process.on('SIGINT', () => { try { sttProc?.kill(); } catch { /* ignora */ } process.exit(0); });
 process.on('SIGTERM', () => { try { sttProc?.kill(); } catch { /* ignora */ } process.exit(0); });
 
-pruneLog();
-startLocalStt();
-watchLocalStt();
-client.login(DISCORD_TOKEN).catch((e) => {
-    console.error(`❌ Não consegui conectar ao Discord: ${e.message}`);
-    if (/token|disallowed|401/i.test(e.message)) {
-        console.error('O token do bot está inválido. Gere um novo em discord.com/developers > Bot > Reset Token e atualize o arquivo .env.');
-        process.exit(2);
-    }
-    process.exit(1);
-});
+if (require.main === module) {
+    pruneLog();
+    startLocalStt();
+    watchLocalStt();
+    client.login(DISCORD_TOKEN).catch((e) => {
+        console.error(`❌ Não consegui conectar ao Discord: ${e.message}`);
+        if (/token|disallowed|401/i.test(e.message)) {
+            console.error('O token do bot está inválido. Gere um novo em discord.com/developers > Bot > Reset Token e atualize o arquivo .env.');
+            process.exit(2);
+        }
+        process.exit(1);
+    });
+}
+
+module.exports = {
+    preprocessAudio,
+    trimTrailingSilence,
+    pcmToWav,
+    formatDiscordMarkdown,
+    formatTimeWindow,
+    splitMessage,
+    applyCorrections,
+    isSuspicious,
+    parseWhisper
+};

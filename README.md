@@ -159,5 +159,5 @@ Se preferir rodar direto na sua máquina (Windows ou Linux):
 - node@20, discord.js@14, @snazzah/davey@0.1, @discordjs/voice@0.19
 
 ## Commands
-check: node --check bot.js
+check: node --check bot.js && node --test tests/*.test.js
 session_limit: 20
