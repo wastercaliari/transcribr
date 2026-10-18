@@ -14,3 +14,4 @@
 2026-10-18 [DONE] @bot.js MÛdulo de telemetria e mÈtricas de desempenho de transcriÁ„o no /status e /health | why: visibilidade de latÍncia mÈdia, ·udio processado e descarte de ruÌdos (I-4)
 2026-10-18 [DONE] @bot.js ExportaÁ„o da Ata TÈcnica e transcriÁ„o integral como anexo Markdown (.md) no Discord /resumo | why: download imediato e facilidade de arquivamento institucional (I-5)
 2026-10-18 [DONE] @bot.js Implementa√ß√£o de bot√µes interativos no Discord (ActionRowBuilder/ButtonBuilder) para solicita√ß√£o de ata com 1 clique | why: facilidade de uso e encerramento guiado de chamadas (I-1)
+2026-10-18 [DONE] @bot.js Sincroniza√ß√£o autom√°tica das atas t√©cnicas do /resumo direto no Confluence space TBR via REST API | why: governan√ßa corporativa e hist√≥rico institucional indexado (I-2)

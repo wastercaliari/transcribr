@@ -853,6 +853,149 @@ function formatDiscordMarkdown(text) {
     return cleaned.join('\n');
 }
 
+// ---------- Integração e Sincronização com Confluence (SCRUM-45 / I-2) ----------
+function formatInlineHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
+function markdownToConfluenceStorage(markdown) {
+    if (!markdown) return '';
+    const lines = markdown.split('\n');
+    const htmlLines = [];
+    let inList = false;
+
+    for (let i = 0; i < lines.length; i++) {
+        const rawLine = lines[i];
+        const line = rawLine.trim();
+
+        if (!line) {
+            if (inList) { htmlLines.push('</ul>'); inList = false; }
+            continue;
+        }
+
+        if (line.startsWith('### ')) {
+            if (inList) { htmlLines.push('</ul>'); inList = false; }
+            htmlLines.push(`<h3>${formatInlineHtml(line.slice(4))}</h3>`);
+            continue;
+        }
+        if (line.startsWith('## ')) {
+            if (inList) { htmlLines.push('</ul>'); inList = false; }
+            htmlLines.push(`<h2>${formatInlineHtml(line.slice(3))}</h2>`);
+            continue;
+        }
+        if (line.startsWith('# ')) {
+            if (inList) { htmlLines.push('</ul>'); inList = false; }
+            htmlLines.push(`<h1>${formatInlineHtml(line.slice(2))}</h1>`);
+            continue;
+        }
+        if (line === '---' || line === '***') {
+            if (inList) { htmlLines.push('</ul>'); inList = false; }
+            htmlLines.push('<hr />');
+            continue;
+        }
+        if (line.startsWith('• ') || line.startsWith('- ') || line.startsWith('* ')) {
+            if (!inList) { htmlLines.push('<ul>'); inList = true; }
+            htmlLines.push(`  <li>${formatInlineHtml(line.slice(2))}</li>`);
+            continue;
+        }
+
+        if (inList) { htmlLines.push('</ul>'); inList = false; }
+        htmlLines.push(`<p>${formatInlineHtml(line)}</p>`);
+    }
+    if (inList) { htmlLines.push('</ul>'); inList = false; }
+    return htmlLines.join('\n');
+}
+
+let cachedAtlassianToken = null;
+function getConfluenceToken(explicitToken) {
+    if (explicitToken !== undefined) return explicitToken || null;
+    if (process.env.CONFLUENCE_API_TOKEN !== undefined) {
+        return process.env.CONFLUENCE_API_TOKEN || null;
+    }
+    if (process.env.ATLASSIAN_API_TOKEN !== undefined) {
+        return process.env.ATLASSIAN_API_TOKEN || null;
+    }
+    if (cachedAtlassianToken) return cachedAtlassianToken;
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const tokenFile = path.resolve(__dirname, 'Atlassian Account.txt');
+        if (fs.existsSync(tokenFile)) {
+            const raw = fs.readFileSync(tokenFile, 'utf8');
+            const match = raw.match(/ATATT[A-Za-z0-9_\-=]+/);
+            if (match) {
+                cachedAtlassianToken = match[0];
+                return cachedAtlassianToken;
+            }
+        }
+    } catch { /* ignora */ }
+    return null;
+}
+
+async function syncAtaToConfluence({ title, summaryMarkdown, transcriptLines, timeWindow, model, token: explicitToken }) {
+    const token = getConfluenceToken(explicitToken);
+    const email = process.env.CONFLUENCE_EMAIL || 'wasterlucas@gmail.com';
+    const domain = process.env.CONFLUENCE_DOMAIN || 'wastercaliari.atlassian.net';
+    const spaceKey = process.env.CONFLUENCE_SPACE || 'TBR';
+    const parentId = process.env.CONFLUENCE_PARENT_PAGE_ID || '327687';
+
+    if (!token) {
+        return { success: false, skipped: true, reason: 'CONFLUENCE_API_TOKEN não configurado' };
+    }
+
+    const auth = Buffer.from(`${email}:${token}`).toString('base64');
+    const storageHtml =
+        `<p><strong>Data da Reunião:</strong> ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>` +
+        `<p><strong>Janela de Áudio:</strong> ${timeWindow}</p>` +
+        `<p><strong>Motor de Inteligência Artificial:</strong> ${model}</p>` +
+        `<hr />` +
+        `<h2>Ata Técnica Estruturada</h2>` +
+        markdownToConfluenceStorage(summaryMarkdown) +
+        `<hr />` +
+        `<h2>Transcrição Integral das Falas</h2>` +
+        `<p>` +
+        transcriptLines.map(l => formatInlineHtml(l)).join('<br />') +
+        `</p>`;
+
+    const payload = {
+        type: 'page',
+        title: title,
+        space: { key: spaceKey },
+        ancestors: parentId ? [{ id: String(parentId) }] : [],
+        body: {
+            storage: {
+                value: storageHtml,
+                representation: 'storage'
+            }
+        }
+    };
+
+    const res = await fetch(`https://${domain}/wiki/rest/api/content`, {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Basic ' + auth,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+        const data = await res.json();
+        const pageUrl = `https://${domain}/wiki${data._links?.webui || ''}`;
+        return { success: true, pageId: data.id, url: pageUrl };
+    } else {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`Falha ao sincronizar com Confluence (HTTP ${res.status}): ${errText}`);
+    }
+}
+
 async function generateAndSendResumo(i, totalSeconds) {
     if (!i.deferred && !i.replied) {
         await i.deferReply({ flags: MessageFlags.Ephemeral });
@@ -963,7 +1106,25 @@ ${transcript}`;
         const attachment = new AttachmentBuilder(mdDoc, { name: mdFileName });
         await i.user.send({ content: '📎 **Arquivo Markdown (.md) da ata técnica anexado para download:**', files: [attachment] });
 
-        await i.editReply('📬 Resumo técnico e arquivo .md enviados no seu privado.');
+        // Sincronização automática com o Confluence (SCRUM-45 / I-2)
+        let confluenceAviso = '';
+        try {
+            const meetingTitle = `Ata Técnica - ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/:/g, 'h')} (${formatTimeWindow(totalSeconds)})`;
+            const confResult = await syncAtaToConfluence({
+                title: meetingTitle,
+                summaryMarkdown: rawSummary,
+                transcriptLines,
+                timeWindow: tempoDesc,
+                model: result.model
+            });
+            if (confResult.success) {
+                confluenceAviso = `\n🌐 **Sincronizado no Confluence:** [Abrir Página](${confResult.url})`;
+            }
+        } catch (confErr) {
+            console.warn('Confluence auto-sync ignorado/falhou:', confErr.message);
+        }
+
+        await i.editReply(`📬 Resumo técnico e arquivo .md enviados no seu privado.${confluenceAviso}`);
     } catch {
         await i.editReply('❌ Não consegui te enviar mensagem privada. Habilite DMs de membros do servidor (Configurações de privacidade) e tente de novo.');
     }
@@ -1159,6 +1320,8 @@ module.exports = {
     parseWhisper,
     createHealthServer,
     getTelemetryMetrics,
-    recordTranscriptionMetric
+    recordTranscriptionMetric,
+    markdownToConfluenceStorage,
+    syncAtaToConfluence
 };
 
