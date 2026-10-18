@@ -1,14 +1,24 @@
-name: CI - TranscriBR Pipeline
+name: DevSecOps - TranscriBR CI/CD Pipeline
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule:
+    - cron: '0 4 * * 1' # Varredura semanal contínua de segurança (segunda-feira às 04:00 UTC)
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
 
 jobs:
+  # -------------------------------------------------------------
+  # 1. QUALIDADE & TESTES AUTOMATIZADOS (Node 20.x e 22.x)
+  # -------------------------------------------------------------
   test:
-    name: Build, Lint & Automated Tests
+    name: Build & Testes Automatizados (${{ matrix.node-version }})
     runs-on: ubuntu-latest
 
     strategy:
@@ -35,3 +45,61 @@ jobs:
         run: node --test tests/*.test.js
         env:
           NODE_ENV: test
+
+  # -------------------------------------------------------------
+  # 2. DEVSECOPS: VARREDURA DE SEGREDOS & CHAVES (TruffleHog)
+  # -------------------------------------------------------------
+  secrets-scan:
+    name: Detecção de Segredos (TruffleHog)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Secrets Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
+
+  # -------------------------------------------------------------
+  # 3. DEVSECOPS: AUDITORIA DE DEPENDÊNCIAS & CVES (SCA)
+  # -------------------------------------------------------------
+  dependency-audit:
+    name: Auditoria de Vulnerabilidades npm (SCA)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+
+  # -------------------------------------------------------------
+  # 4. DEVSECOPS: ANÁLISE ESTÁTICA DE SEGURANÇA (GitHub CodeQL SAST)
+  # -------------------------------------------------------------
+  codeql-sast:
+    name: Análise Estática de Segurança (CodeQL SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
