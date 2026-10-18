@@ -1,0 +1,32 @@
+{
+  "autoCompactEnabled": false,
+  "autoMemoryEnabled": true,
+  "availableModels": [
+    "sonnet",
+    "opus",
+    "fable"
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" 2>/dev/null || exit 0; [ -f STATE.md ] && { echo '## STATE.md (auto-loaded)'; cat STATE.md; }; [ -f IDEAS.md ] && { echo '## IDEAS.md (open ideas, auto-loaded)'; head -n 12 IDEAS.md; }; [ -f CHANGELOG.md ] && { echo '## @global lines (CHANGELOG.md)'; grep -F '@global' CHANGELOG.md; echo '## Last 5 [FAIL] lines (CHANGELOG.md)'; grep -F '[FAIL]' CHANGELOG.md | tail -n 5; }; c=$(git log --since=24.hours --oneline 2>/dev/null | head -n 10); [ -n \"$c\" ] && { echo '## Commits of the last 24h (git log)'; echo \"$c\"; }; exit 0"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/memory-gate.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

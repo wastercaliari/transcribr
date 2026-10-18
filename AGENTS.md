@@ -1,3 +1,5 @@
+Antes de qualquer tarefa, leia o RULES.md inteiro e siga-o.
+
 # Diretrizes de Governança e Documentação Contínua: TranscriBR
 
 Este documento estabelece o padrão OBRIGATÓRIO de fluxo de trabalho, registro de engenharia e governança contínua do projeto TranscriBR.

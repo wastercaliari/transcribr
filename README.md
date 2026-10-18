@@ -152,3 +152,12 @@ Se preferir rodar direto na sua máquina (Windows ou Linux):
 
 - O arquivo `.env` com suas chaves privadas está listado no `.gitignore` e **nunca é versionado ou exposto**.
 - No Railway, todas as suas variáveis de ambiente ficam criptografadas na aba **Variables**.
+
+---
+
+## Stack & Versions
+- node@20, discord.js@14, @snazzah/davey@0.1, @discordjs/voice@0.19
+
+## Commands
+check: node --check bot.js
+session_limit: 20

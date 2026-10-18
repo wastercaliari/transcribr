@@ -1,0 +1,27 @@
+#!/bin/sh
+# 1) CHANGELOG.md and CALCULATIONS.md are append-only.  2) The README "check:" command must pass.
+# Works for any agent and any human that commits. Reads the staged files, not the working tree.
+for f in CHANGELOG.md CALCULATIONS.md; do
+  old=$(git show "HEAD:$f" 2>/dev/null) || continue
+  if ! new=$(git show ":$f" 2>/dev/null); then
+    echo "pre-commit: $f is append-only and cannot be deleted" >&2; exit 1
+  fi
+  case "$new" in
+    "$old"*) ;;
+    *) echo "pre-commit: $f is append-only; add new lines instead of editing or deleting old ones" >&2; exit 1 ;;
+  esac
+done
+if ! git cat-file -e :README.md 2>/dev/null; then
+  if git cat-file -e HEAD:README.md 2>/dev/null; then
+    echo "pre-commit: README.md holds the check command and cannot be deleted" >&2; exit 1
+  fi
+  echo "pre-commit: no README.md yet, check skipped. Add README.md with a 'check:' line to turn it on." >&2
+  exit 0
+fi
+cmd=$(git show :README.md | sed -n 's/^[-*[:space:]]*check:[[:space:]]*//p' | head -n 1 | tr -d '`')
+if [ -z "$cmd" ]; then
+  echo "pre-commit: add a 'check: <command>' line under ## Commands in README.md" >&2
+  exit 1
+fi
+echo "pre-commit: running: $cmd" >&2
+sh -c "$cmd" || { echo "pre-commit: check failed, commit blocked" >&2; exit 1; }
