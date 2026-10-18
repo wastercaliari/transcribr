@@ -581,13 +581,18 @@ async function joinChannel(voiceChannel) {
         connection.on(VoiceConnectionStatus.Destroyed, () => {
             if (sessions.get(guild.id)?.connection === connection) {
                 sessions.delete(guild.id);
-                if (!state.paused && humansIn(voiceChannel).length > 0) {
-                    scheduleReconnection(guild, voiceChannel);
+                const liveChannel = guild.channels.cache.get(voiceChannel.id) || voiceChannel;
+                if (!state.paused && humansIn(liveChannel).length > 0) {
+                    scheduleReconnection(guild, liveChannel);
                 } else {
                     setTimeout(() => reconcile(guild), 3_000);
                 }
             }
         });
+
+        state.targetChannels = state.targetChannels || {};
+        state.targetChannels[guild.id] = voiceChannel.id;
+        saveState();
 
         startListening(guild, session);
         console.log(`✅ Entrei em "${voiceChannel.name}" (${humansIn(voiceChannel).length} pessoa(s))`);
@@ -600,8 +605,14 @@ async function joinChannel(voiceChannel) {
 }
 
 function leave(guild) {
+    clearTimeout(leaveTimers.get(guild.id));
+    leaveTimers.delete(guild.id);
     clearTimeout(reconnectAttempts.get(guild.id)?.timer);
     reconnectAttempts.delete(guild.id);
+    if (state.targetChannels?.[guild.id]) {
+        delete state.targetChannels[guild.id];
+        saveState();
+    }
     const s = sessions.get(guild.id);
     if (!s) return;
     const channelName = s.voiceChannel.name;
@@ -632,17 +643,56 @@ function leave(guild) {
     } catch { /* ignora */ }
 }
 
+function selectTargetVoiceChannel(guild, targetChannelId, stateObj = state) {
+    if (stateObj?.paused) return null;
+
+    // Se houver um canal previamente fixado e ainda contiver pessoas, prioridade absoluta!
+    if (targetChannelId) {
+        const target = guild.channels?.cache?.get(targetChannelId);
+        if (target &&
+            (target.type === ChannelType.GuildVoice || target.type === ChannelType.GuildStageVoice || target.type === 2) &&
+            target.id !== guild.afkChannelId &&
+            humansIn(target).length > 0 &&
+            (!client.user || target.permissionsFor(client.user)?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect]))) {
+            return target;
+        } else if (target && humansIn(target).length === 0) {
+            // Canal fixado ficou sem ninguém: limpa fixação
+            if (stateObj?.targetChannels?.[guild.id]) {
+                delete stateObj.targetChannels[guild.id];
+                if (typeof saveState === 'function') saveState();
+            }
+        }
+    }
+
+    // Busca dentre os canais elegíveis aquele com mais participantes
+    const channels = [...(guild.channels?.cache?.values() || [])].filter(c =>
+        (c.type === ChannelType.GuildVoice || c.type === ChannelType.GuildStageVoice || c.type === 2) &&
+        c.id !== guild.afkChannelId &&
+        humansIn(c).length > 0 &&
+        (!client.user || c.permissionsFor(client.user)?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect])));
+
+    if (!channels.length) return null;
+    channels.sort((a, b) => humansIn(b).length - humansIn(a).length);
+    return channels[0];
+}
+
 const busy = new Set();
 async function reconcile(guild) {
     if (busy.has(guild.id) || joining.has(guild.id)) return;
+    if (reconnectAttempts.has(guild.id)) {
+        // Reconexão ativa agendada para o canal atual: nunca desviar para outro canal
+        return;
+    }
     busy.add(guild.id);
     try {
         const session = sessions.get(guild.id);
         if (state.paused) { if (session) leave(guild); return; }
 
         if (session) {
-            if (humansIn(session.voiceChannel).length > 0) {
-                clearTimeout(leaveTimers.get(guild.id)); leaveTimers.delete(guild.id);
+            const currentChannel = guild.channels.cache.get(session.voiceChannel.id) || session.voiceChannel;
+            if (humansIn(currentChannel).length > 0) {
+                clearTimeout(leaveTimers.get(guild.id));
+                leaveTimers.delete(guild.id);
                 return;
             }
             // Call vazia: espera um pouco antes de sair
@@ -650,22 +700,26 @@ async function reconcile(guild) {
                 leaveTimers.set(guild.id, setTimeout(() => {
                     leaveTimers.delete(guild.id);
                     const s = sessions.get(guild.id);
-                    if (s && humansIn(s.voiceChannel).length === 0) { leave(guild); reconcile(guild); }
+                    if (!s) return;
+                    const ch = guild.channels.cache.get(s.voiceChannel.id) || s.voiceChannel;
+                    if (humansIn(ch).length === 0) {
+                        leave(guild);
+                        reconcile(guild);
+                    }
                 }, LEAVE_GRACE_MS));
             }
             return;
         }
 
-        // Sem sessão: entra no canal com mais gente
-        const channels = [...guild.channels.cache.values()].filter(c =>
-            (c.type === ChannelType.GuildVoice || c.type === ChannelType.GuildStageVoice) &&
-            c.id !== guild.afkChannelId && humansIn(c).length > 0 &&
-            c.permissionsFor(client.user)?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect]));
-        if (!channels.length) return;
-        channels.sort((a, b) => humansIn(b).length - humansIn(a).length);
-        try { await joinChannel(channels[0]); } catch (e) {
+        // Sem sessão ativa: busca o canal alvo respeitando a fixação
+        const target = selectTargetVoiceChannel(guild, state.targetChannels?.[guild.id]);
+        if (!target) return;
+
+        try {
+            await joinChannel(target);
+        } catch (e) {
             console.error('Falha ao entrar na call:', e.message);
-            setTimeout(() => reconcile(guild), 15_000);
+            scheduleReconnection(guild, target);
         }
     } finally {
         busy.delete(guild.id);
@@ -1160,18 +1214,26 @@ client.on('interactionCreate', async (i) => {
     try {
         const guild = i.guild;
         if (i.commandName === 'transcrever') {
-            state.paused = false; saveState();
+            state.paused = false;
             const vc = i.member?.voice?.channel;
             if (!vc) {
+                saveState();
                 await i.reply({ content: '▶️ Transcrição **iniciada**. Entre numa call e eu entro junto.', flags: MessageFlags.Ephemeral });
                 reconcile(guild);
                 return;
             }
+            state.targetChannels = state.targetChannels || {};
+            state.targetChannels[guild.id] = vc.id;
+            saveState();
             await i.deferReply();
             await joinChannel(vc);
             await i.editReply(`▶️ Transcrevendo **${vc.name}**.`);
         } else if (i.commandName === 'parar') {
-            state.paused = true; saveState();
+            state.paused = true;
+            if (state.targetChannels?.[guild.id]) {
+                delete state.targetChannels[guild.id];
+            }
+            saveState();
             leave(guild);
             await i.reply('⏸️ Bot **pausado**. Use `/transcrever` para voltar.');
         } else if (i.commandName === 'resumo') {
@@ -1180,8 +1242,11 @@ client.on('interactionCreate', async (i) => {
             await handleLimpar(i);
         } else if (i.commandName === 'status') {
             const s = sessions.get(guild.id);
+            const targetId = state.targetChannels?.[guild.id];
+            const targetCh = targetId ? guild.channels.cache.get(targetId) : null;
+            const targetMsg = targetCh ? ` (fixado em **${targetCh.name}**)` : '';
             const baseMsg = state.paused ? '⏸️ **Pausado** — use `/transcrever`.'
-                : s ? `🟢 Transcrevendo **${s.voiceChannel.name}** (${humansIn(s.voiceChannel).length} pessoa(s)).`
+                : s ? `🟢 Transcrevendo **${s.voiceChannel.name}** (${humansIn(s.voiceChannel).length} pessoa(s))${targetMsg}.`
                     : '🟢 Ativo — aguardando alguém entrar numa call.';
             const t = getTelemetryMetrics();
             const teleMsg = `\n📊 **Telemetria de Transcrição**:\n` +
@@ -1322,6 +1387,7 @@ module.exports = {
     getTelemetryMetrics,
     recordTranscriptionMetric,
     markdownToConfluenceStorage,
-    syncAtaToConfluence
+    syncAtaToConfluence,
+    selectTargetVoiceChannel
 };
 
