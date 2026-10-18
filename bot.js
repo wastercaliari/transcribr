@@ -3,6 +3,7 @@
 // Roda num computador que fica sempre ligado. Ninguém precisa instalar nada:
 // quando alguém entra num canal de voz, o bot entra junto e posta as falas no canal "transcribr-".
 // Quando a call esvazia, ele sai. Motores de STT: Whisper local -> Groq -> Gemini (configurável).
+const http = require('http');
 const net = require('net');
 const fs = require('fs');
 const path = require('path');
@@ -934,14 +935,51 @@ client.once('clientReady', async (c) => {
     setInterval(() => client.guilds.cache.forEach(g => reconcile(g)), 60_000);
 });
 
+const HEALTH_PORT = Number(process.env.PORT || process.env.HEALTH_PORT || 8080);
+function createHealthServer() {
+    return http.createServer((req, res) => {
+        if (req.url === '/health' || req.url === '/') {
+            const data = {
+                status: 'ok',
+                bot: client.user ? client.user.tag : 'offline',
+                uptimeSeconds: Math.round(process.uptime()),
+                engines: availableEngines(),
+                paused: state.paused,
+                memory: {
+                    rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+                    heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
+                },
+                activeSessions: sessions.size,
+                timestamp: new Date().toISOString()
+            };
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(data));
+            return;
+        }
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
+    });
+}
+
+let healthServer = null;
 process.on('unhandledRejection', (e) => console.error('Rejeição não tratada:', e?.message || e));
-process.on('SIGINT', () => { try { sttProc?.kill(); } catch { /* ignora */ } process.exit(0); });
-process.on('SIGTERM', () => { try { sttProc?.kill(); } catch { /* ignora */ } process.exit(0); });
+process.on('SIGINT', () => { try { healthServer?.close(); sttProc?.kill(); } catch { /* ignora */ } process.exit(0); });
+process.on('SIGTERM', () => { try { healthServer?.close(); sttProc?.kill(); } catch { /* ignora */ } process.exit(0); });
 
 if (require.main === module) {
     pruneLog();
     startLocalStt();
     watchLocalStt();
+    try {
+        healthServer = createHealthServer();
+        healthServer.listen(HEALTH_PORT, () => {
+            console.log(`🌐 Servidor HTTP de healthcheck ativo na porta ${HEALTH_PORT} (/health)`);
+        });
+        healthServer.on('error', (err) => {
+            console.warn(`Servidor de healthcheck não pôde subir na porta ${HEALTH_PORT}: ${err.message}`);
+        });
+    } catch (e) { console.warn('Erro ao iniciar healthcheck:', e.message); }
+
     client.login(DISCORD_TOKEN).catch((e) => {
         console.error(`❌ Não consegui conectar ao Discord: ${e.message}`);
         if (/token|disallowed|401/i.test(e.message)) {
@@ -961,5 +999,7 @@ module.exports = {
     splitMessage,
     applyCorrections,
     isSuspicious,
-    parseWhisper
+    parseWhisper,
+    createHealthServer
 };
+
