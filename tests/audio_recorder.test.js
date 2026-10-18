@@ -52,6 +52,18 @@ describe('Audio Recorder & Consolidation Module (SCRUM-53)', () => {
             assert.strictEqual(stats.utteranceCount, 1);
             assert.deepStrictEqual(stats.speakers, ['Bob']);
         });
+
+        it('deve desativar gravação quando ENABLE_AUDIO_RECORDING for false', () => {
+            const originalEnv = process.env.ENABLE_AUDIO_RECORDING;
+            try {
+                process.env.ENABLE_AUDIO_RECORDING = 'false';
+                const ok = recordAudioUtterance(testGuildId, 'Alice', Buffer.alloc(1000));
+                assert.strictEqual(ok, false);
+                assert.strictEqual(getAudioSessionStats(testGuildId).utteranceCount, 0);
+            } finally {
+                process.env.ENABLE_AUDIO_RECORDING = originalEnv || 'true';
+            }
+        });
     });
 
     describe('exportSessionAudioWav', () => {

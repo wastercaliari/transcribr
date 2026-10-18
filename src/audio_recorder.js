@@ -27,7 +27,22 @@ function createWavHeader(dataLength, sampleRate = DEFAULT_SAMPLE_RATE) {
     return header;
 }
 
-function recordAudioUtterance(guildId, userName, pcmBuffer, timestamp = Date.now(), maxBufferBytes = DEFAULT_MAX_BUFFER_BYTES) {
+function getMaxBufferBytes() {
+    const envMb = Number(process.env.MAX_AUDIO_BUFFER_MB);
+    if (!isNaN(envMb) && envMb > 0) {
+        return Math.min(envMb, 50) * 1024 * 1024;
+    }
+    return DEFAULT_MAX_BUFFER_BYTES;
+}
+
+function isRecordingEnabled() {
+    return process.env.ENABLE_AUDIO_RECORDING !== 'false';
+}
+
+function recordAudioUtterance(guildId, userName, pcmBuffer, timestamp = Date.now(), maxBufferBytes = getMaxBufferBytes()) {
+    if (!isRecordingEnabled()) {
+        return false;
+    }
     if (!guildId || !pcmBuffer || !Buffer.isBuffer(pcmBuffer) || pcmBuffer.length === 0) {
         return false;
     }
