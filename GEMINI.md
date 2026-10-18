@@ -6,14 +6,14 @@ Este documento estabelece o padrão OBRIGATÓRIO de fluxo de trabalho, registro 
 
 ## Tríplice Registro Obrigatório (Git, Jira e Confluence)
 
-A partir de agora, **TODA e QUALQUER** alteração de código, nova funcionalidade, refatoração, correção de bug ou evolução arquitetural DEVE ser obrigatoriamente refletida nos 3 pilares do ecossistema:
+A partir de agora, **TODA e QUALQUER** alteração de código, nova funcionalidade, refatoração, correção de bug ou evolução arquitetural DEVE ser obrigatoriamente refletida a cada passo nos 3 pilares do ecossistema:
 
 ---
 
 ### 1. Versionamento no Git / GitHub
 - **Commits Semânticos**: Utilize o padrão *Conventional Commits* (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, etc.).
 - **Mensagens Claras**: Descreva o que mudou e o motivo técnico da alteração.
-- **Sincronização**: Realize o `git push origin main` ao concluir a entrega ou marcos significativos.
+- **Sincronização a Cada Passo**: Realize o `git push origin main` imediatamente a cada passo concluído.
 - **Segurança Absoluta**: NUNCA commite arquivos `.env`, tokens privados (`Atlassian*.txt`, `Railway*.txt`) ou pastas de configuração local (`.agents/`). O `.gitignore` deve ser estritamente preservado.
 
 ---
@@ -27,10 +27,10 @@ A partir de agora, **TODA e QUALQUER** alteração de código, nova funcionalida
   - `SCRUM-26`: Discord Bot Core, Ciclo de Vida e Comandos Slash.
   - `SCRUM-33`: Infraestrutura, DevOps & Deploy 24/7 (Railway).
   - `SCRUM-38`: Integrações Enterprise & Ecossistema Atlassian (Confluence & Jira).
-- **Procedimento para Cada Modificação**:
-  - Toda nova tarefa deve ser criada ou vinculada ao Epic correspondente (como `Tarefa` ou `Subtask`).
-  - Atualize a descrição técnica (formato ADF) com as decisões tomadas e critérios de aceitação.
-  - Se for um bugfix, referencie a tarefa de resolução e mova o status correspondente.
+- **Procedimento Obrigatório a Cada Passo**:
+  - Toda tarefa tocada deve ter seu status atualizado no Kanban (colunas 'A fazer', 'Em andamento' ou 'Concluído').
+  - Mantenha a alocação obrigatória na Sprint ativa (ex.: 'SCRUM Sprint 0') para exibição contínua no Quadro.
+  - Toda nova tarefa, ideia ou débito técnico descoberto deve ser cadastrado e vinculado ao Epic correspondente.
 
 ---
 

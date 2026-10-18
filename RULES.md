@@ -30,6 +30,7 @@ You play two roles in every answer, without being asked.
 8. If you cannot follow a rule, say which rule and why. Never pretend.
 9. A user request overrides these rules, except rules 1, 2, 3 and 8. Say in one line which rule it overrides.
 10. When rules conflict, choose in this order: correct and verified, then small context, then memory, then teaching, then ideas.
+11. **Tríplice Registro Contínuo Obrigatório (Git, Jira e Confluence):** Toda e qualquer entrega, alteração de código, refatoração, correção de bug ou evolução técnica DEVE ser obrigatoriamente registrada a cada passo nos 3 pilares do ecossistema: (1) Git/GitHub via commits semânticos e `git push origin main`, (2) Jira Project SCRUM via atualização de tarefas no Kanban, vinculação à Sprint ativa e enriquecimento do backlog, e (3) Confluence TBR na Bíblia do Projeto (registro de novos ADRs e atualização canônica das páginas). Nenhuma etapa é considerada concluída sem esse ciclo completo.
 
 ### 3. Labels
 
@@ -145,7 +146,11 @@ Sem acesso aos arquivos:
 5. **Change.** Edit only the lines that must change. Write complete code: all imports, no `...`, no "rest unchanged". Start each new source file with a one-line comment that says what it does. With a file-edit tool, rewrite a whole file only when it is new.
 6. **Test.** For code that computes a value or makes a decision, add or update a test with one normal case and one edge case (empty, null, zero or duplicate). Take expected values from the request, not from running your code. A test must be able to fail: it would fail if the function body were emptied. For a bug, write the failing test first, then fix.
 7. **Check.** Run the `check` command from README `## Commands`, or ask the user to run it (see Modes). Keep the output short but always keep the first error in full. Before each fix, search the log for the error's type and message: `rg -nF "<error text>" CHANGELOG.md`. Never repeat a fix that the log lists as FAIL. Fix one thing at a time. After 2 failed fixes, check the premise: versions, environment, wrong file. After 3, do a RESET. A piece is done only when the check passed and it leaves no TODO or commented-out code, no secret or real personal data, and no new dependency you did not justify.
-8. **Record.** Add log lines: DONE when the piece passed its check or the user confirmed it, FAIL after each failed fix, DECISION when you chose between options, ASSUMPTION when the request allowed two readings and you picked one, RULE when the user states a business rule, DROP when the user rejects an idea. Then overwrite `STATE.md` and update `IDEAS.md`. Do all of it in one tool call (see Memory).
+8. **Record & Tríplice Registro Contínuo.** A cada passo concluído, execute obrigatoriamente o ciclo completo nos 3 pilares:
+   - **Memória local:** Adicionar linhas de log no `CHANGELOG.md` ([DONE], [FAIL], [DECISION], etc.), sobrescrever `STATE.md` e atualizar `IDEAS.md` em uma única chamada (veja Memory).
+   - **Git / GitHub:** Realizar commit semântico (`feat:`, `fix:`, `docs:`, `test:`, etc.) e efetuar `git push origin main`.
+   - **Jira Software (SCRUM):** Atualizar status das tarefas no Kanban, garantir alocação na Sprint ativa e cadastrar novas ideias/débitos no backlog.
+   - **Confluence (TBR):** Registrar novas decisões em ADRs (`07. Histórico de Versões & Decisões de Engenharia (ADRs)`) e atualizar a respectiva página canônica para manter a Bíblia do Projeto viva.
 9. **Deliver.** Use the answer format, with the Chronicler's ideas (see Suggestions).
 10. **Review.** When a feature is finished (not after every piece), or when the user asks, suggest an independent review in Próximo passo. The reviewer is a subagent or a new session that never saw this conversation and follows `.claude/agents/revisor.md`. It hunts for defects, writes tests that show them and a short report, and fixes nothing. You turn each finding into a new piece or an idea.
 

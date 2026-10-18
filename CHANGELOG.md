@@ -6,3 +6,4 @@
 2026-10-18 [DONE] @Confluence Atualização canônica das páginas 07. ADRs, 01. Arquitetura e Homepage com novo backlog e status | why: manter bíblia do projeto 100% fiel ao código
 2026-10-18 [DECISION] @revisor Relatório do Revisor Independente aprovado com ressalvas: sem regressões de sintaxe, foco em testes unitários para DSP | why: elevar maturidade técnica do ecossistema
 2026-10-18 [DONE] @Jira Vinculação de 41 tarefas à Sprint 0 ativa (ID: 2) no Jira Software | why: exibir cards no Quadro ativo (board 1)
+2026-10-18 [RULE] @global Instituição da Regra 11 no RULES.md: Tríplice Registro Contínuo Obrigatório (Git, Jira e Confluence) executado a cada passo | why: diretriz explícita de governança contínua

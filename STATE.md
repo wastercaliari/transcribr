@@ -1,6 +1,6 @@
 # STATE
 Goal: Operação 24/7 e evolução contínua do TranscriBR com alta precisão e governança
-Done: setup inicial, DAVE E2EE, Groq Whisper, atas técnicas /resumo, Bíblia no Confluence, Epics no Jira, RULES 16.4, revisão independente, sincronização do Kanban, 8 novos itens de backlog e alocação da Sprint 0 no board ativo
+Done: setup inicial, DAVE E2EE, Groq Whisper, atas técnicas /resumo, Bíblia no Confluence, Epics no Jira, RULES 16.4, revisão independente, sincronização do Kanban, Sprint 0 ativa e padronização do Tríplice Registro contínuo a cada passo
 Next: Implementar testes unitários para o pipeline de áudio DSP (SCRUM-46 / I-3) ou botão interativo /resumo (SCRUM-44 / I-1)
 Blockers: nenhum
 Failed (what was tried, error type and message): see CHANGELOG.md
