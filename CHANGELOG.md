@@ -20,3 +20,6 @@
 2026-10-18 [DONE] @Jira Criação do Quadro Kanban "Ideias & Sugestões" (Board ID: 2), criação de 3 novos status de ciclo de vida e cadastro de 8 novas ideias (SCRUM-53 a SCRUM-60) | why: esteira contínua de inovação e ideação solicitada pelo usuário
 2026-10-18 [RULE] @git Estratégia de branches por card do Jira (<tipo>/<TICKET>-<desc>) e vinculação automática de commits e branches no Jira via hook post-commit | why: rastreabilidade total do desenvolvimento de ponta a ponta solicitada pelo usuário
 2026-10-18 [DONE] @scripts/link_jira_github.js Implementação de script e hook post-commit para vinculação automática de commits e branches do GitHub nos cards do Jira via Remote Links API | why: automação do histórico Git no Atlassian
+2026-10-18 [DONE] @github Sincronização e publicação de 48 branches dedicadas (<tipo>/<TICKET>-<desc>) no GitHub origin | why: rastreabilidade e histórico nativo por ticket no Jira
+2026-10-18 [DONE] @Jira Vinculação completa de 48 cards (SCRUM-5 a SCRUM-52) com branches e commits via GitHub for Atlassian e Remote Links API | why: indexação nativa no painel de Desenvolvimento do Jira
+2026-10-18 [DECISION] @Confluence Homologação e publicação do ADR-011 sobre rastreabilidade nativa e branches dedicadas por ticket | why: manter Bíblia do Projeto (page 360453) atualizada
