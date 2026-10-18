@@ -345,11 +345,48 @@ async function runEngine(id, wav, names, seconds, isLast) {
     return await sttGroq(wav, names, seconds);
 }
 
+// ---------- Telemetria de Transcrição ----------
+const telemetry = {
+    audioChunksReceived: 0,
+    audioDurationSeconds: 0,
+    transcriptionsPosted: 0,
+    hallucinationsDiscarded: 0,
+    duplicatesSkipped: 0,
+    engineUsage: { groq: 0, local: 0 },
+    totalLatencyMs: 0,
+    latencySamples: 0
+};
+
+function recordTranscriptionMetric({ durationSec, engine, latencyMs, posted, discarded, duplicate }) {
+    telemetry.audioChunksReceived++;
+    if (durationSec) telemetry.audioDurationSeconds += Number(durationSec) || 0;
+    if (posted) telemetry.transcriptionsPosted++;
+    if (discarded) telemetry.hallucinationsDiscarded++;
+    if (duplicate) telemetry.duplicatesSkipped++;
+    if (engine && telemetry.engineUsage[engine] !== undefined) telemetry.engineUsage[engine]++;
+    if (latencyMs) {
+        telemetry.totalLatencyMs += latencyMs;
+        telemetry.latencySamples++;
+    }
+}
+
+function getTelemetryMetrics() {
+    return {
+        audioChunksReceived: telemetry.audioChunksReceived,
+        audioDurationTotalSec: Math.round(telemetry.audioDurationSeconds * 10) / 10,
+        transcriptionsPosted: telemetry.transcriptionsPosted,
+        hallucinationsDiscarded: telemetry.hallucinationsDiscarded,
+        duplicatesSkipped: telemetry.duplicatesSkipped,
+        avgLatencyMs: telemetry.latencySamples ? Math.round(telemetry.totalLatencyMs / telemetry.latencySamples) : 0,
+        engineUsage: { ...telemetry.engineUsage }
+    };
+}
+
 async function transcribe(wav, names, seconds, userName) {
     const engines = availableEngines();
     if (!engines.length) {
         console.warn(`⚠️ Nenhum motor disponível! STT_ORDER: [${STT_ORDER.join(', ')}], Groq: ${!!GROQ_API_KEY}`);
-        return '';
+        return null;
     }
     let primary = null;
     for (let i = 0; i < engines.length; i++) {
@@ -357,8 +394,7 @@ async function transcribe(wav, names, seconds, userName) {
         try { primary = await runEngine(engines[i], wav, names, seconds, isLast); break; }
         catch (e) { console.warn(`${ENGINE_LABEL[engines[i]]} falhou${isLast ? '' : ', tentando o próximo'}: ${e.message}`); }
     }
-    if (!primary) return '';
-    return primary.text;
+    return primary;
 }
 
 // ---------- Postagem ----------
@@ -420,20 +456,34 @@ function startListening(guild, session) {
             const seconds = (pcm.length / 32000).toFixed(1);
             console.log(`🎙️ [${userName}] ${seconds}s RMS=${Math.round(rms)}`);
             try {
+                const t0 = Date.now();
                 const wav = pcmToWav(preprocessAudio(pcm));
-                const raw = ((await transcribe(wav, names, seconds, userName)) || '').trim();
+                const sttResult = await transcribe(wav, names, seconds, userName);
+                const latencyMs = Date.now() - t0;
+                const raw = ((sttResult && sttResult.text) || '').trim();
                 const cleaned = raw.toLowerCase().replace(/^[ .!?,;"]+|[ .!?,;"]+$/g, '');
-                if (!raw || cleaned.length < 2) return;
-                if (IGNORED_WORDS.has(cleaned) || TAG_REGEX.test(raw)) return;
+                if (!raw || cleaned.length < 2) {
+                    recordTranscriptionMetric({ durationSec: seconds, latencyMs, discarded: true });
+                    return;
+                }
+                if (IGNORED_WORDS.has(cleaned) || TAG_REGEX.test(raw)) {
+                    recordTranscriptionMetric({ durationSec: seconds, latencyMs, discarded: true });
+                    return;
+                }
                 const text = applyCorrections(raw.replace(/<[^>]+>/g, '').trim());
-                if (!text) return;
+                if (!text) {
+                    recordTranscriptionMetric({ durationSec: seconds, latencyMs, discarded: true });
+                    return;
+                }
                 if (isDuplicateTranscription(guild.id, userName, text)) {
                     console.log(`🛡️ [Deduplicação] Fala repetida ignorada para ${userName}: "${text}"`);
+                    recordTranscriptionMetric({ durationSec: seconds, latencyMs, duplicate: true });
                     return;
                 }
                 logLine(guild.id, userName, text);
                 await postText(guild, `🎙️ **${userName}**: ${text}`);
                 console.log(`📤 [${userName}] "${text}"`);
+                recordTranscriptionMetric({ durationSec: seconds, latencyMs, engine: sttResult?.engine, posted: true });
             } catch (err) {
                 console.error(`Erro ao transcrever ${userName}:`, err.message || err);
             }
@@ -904,10 +954,16 @@ client.on('interactionCreate', async (i) => {
             await handleLimpar(i);
         } else if (i.commandName === 'status') {
             const s = sessions.get(guild.id);
-            const msg = state.paused ? '⏸️ **Pausado** — use `/transcrever`.'
+            const baseMsg = state.paused ? '⏸️ **Pausado** — use `/transcrever`.'
                 : s ? `🟢 Transcrevendo **${s.voiceChannel.name}** (${humansIn(s.voiceChannel).length} pessoa(s)).`
                     : '🟢 Ativo — aguardando alguém entrar numa call.';
-            await i.reply({ content: msg, flags: MessageFlags.Ephemeral });
+            const t = getTelemetryMetrics();
+            const teleMsg = `\n📊 **Telemetria de Transcrição**:\n` +
+                `• Falas postadas: **${t.transcriptionsPosted}** (${t.audioDurationTotalSec}s processados)\n` +
+                `• Latência média STT: **${t.avgLatencyMs}ms**\n` +
+                `• Ruídos/alucinações filtrados: **${t.hallucinationsDiscarded}** (duplicações ignoradas: ${t.duplicatesSkipped})\n` +
+                `• Motores acionados: Groq (${t.engineUsage.groq}), Local (${t.engineUsage.local})`;
+            await i.reply({ content: `${baseMsg}\n${teleMsg}`, flags: MessageFlags.Ephemeral });
         }
     } catch (e) {
         console.error('Erro no comando:', e.message);
@@ -985,6 +1041,7 @@ function createHealthServer() {
                     heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
                 },
                 activeSessions: sessions.size,
+                telemetry: getTelemetryMetrics(),
                 timestamp: new Date().toISOString()
             };
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1035,6 +1092,8 @@ module.exports = {
     applyCorrections,
     isSuspicious,
     parseWhisper,
-    createHealthServer
+    createHealthServer,
+    getTelemetryMetrics,
+    recordTranscriptionMetric
 };
 

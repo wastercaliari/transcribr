@@ -11,3 +11,4 @@
 2026-10-18 [DONE] @bot.js Aprimoramento de splitMessage com garantia de paridade e reabertura de codeblocks Markdown | why: prevenir quebras visuais em atas técnicas longas no Discord (I-8)
 2026-10-18 [DONE] @bot.js Implementação de servidor HTTP de healthcheck (/health) para probes de liveness e métricas de memória no Railway | why: observabilidade e monitoramento contínuo em produção (I-6)
 2026-10-18 [DONE] @bot.js Implementação de política de reconexão de voz resiliente com backoff exponencial | why: evitar desconexões permanentes por oscilações transitórias no Discord Voice Gateway (I-7)
+2026-10-18 [DONE] @bot.js Módulo de telemetria e métricas de desempenho de transcrição no /status e /health | why: visibilidade de latência média, áudio processado e descarte de ruídos (I-4)
