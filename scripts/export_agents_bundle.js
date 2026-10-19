@@ -16,23 +16,28 @@ function createAgentsBundle() {
 
     const filesToBundle = [
         {
+            name: 'AGENTE MESTRE UNIVERSAL PLUG-AND-PLAY',
+            file: path.join('agents', 'AGENTE_MESTRE_UNIVERSAL.md'),
+            category: 'ALL_IN_ONE_MASTER_AGENT'
+        },
+        {
             name: 'AGENTE UNIVERSAL DE ENGENHARIA, DEVSECOPS E GOVERNANÇA',
-            file: 'AGENTE_UNIVERSAL_ENGENHARIA_DEVSECOPS.md',
+            file: path.join('agents', 'AGENTE_UNIVERSAL_ENGENHARIA_DEVSECOPS.md'),
             category: 'MASTER_AGENT'
         },
         {
             name: 'AGENTE UNIVERSAL DE MELHORIA CONTÍNUA',
-            file: 'AGENTE_UNIVERSAL_MELHORIA_CONTINUA.md',
+            file: path.join('agents', 'AGENTE_UNIVERSAL_MELHORIA_CONTINUA.md'),
             category: 'CONTINUOUS_IMPROVEMENT_AGENT'
         },
         {
             name: 'AGENTE REVISOR INDEPENDENTE',
-            file: path.join('.claude', 'agents', 'revisor.md'),
+            file: path.join('agents', 'revisor.md'),
             category: 'CODE_REVIEW_AGENT'
         },
         {
             name: 'DIRETRIZES FUNDAMENTAIS DE DEV RULES & GOVERNANÇA (13 REGRAS)',
-            file: 'RULES.md',
+            file: path.join('docs', 'RULES.md'),
             category: 'GOVERNANCE_RULES'
         }
     ];

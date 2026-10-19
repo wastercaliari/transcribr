@@ -8,7 +8,7 @@ cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || exit 0
 git rev-parse --git-dir >/dev/null 2>&1 || exit 0
 changed=$(git status --porcelain -- src 2>/dev/null)
 [ -z "$changed" ] && exit 0
-[ -n "$(git status --porcelain -- CHANGELOG.md)" ] && exit 0
+[ -n "$(git status --porcelain -- docs/CHANGELOG.md CHANGELOG.md)" ] && exit 0
 key=$(printf '%s' "$changed" | cksum | cut -d' ' -f1)
 mark="$(git rev-parse --git-dir)/memory-gate-$key"
 [ -f "$mark" ] && exit 0

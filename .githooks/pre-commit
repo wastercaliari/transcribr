@@ -1,14 +1,24 @@
 #!/bin/sh
 # 1) CHANGELOG.md and CALCULATIONS.md are append-only.  2) The README "check:" command must pass.
 # Works for any agent and any human that commits. Reads the staged files, not the working tree.
-for f in CHANGELOG.md CALCULATIONS.md; do
-  old=$(git show "HEAD:$f" 2>/dev/null) || continue
-  if ! new=$(git show ":$f" 2>/dev/null); then
-    echo "pre-commit: $f is append-only and cannot be deleted" >&2; exit 1
+for name in CHANGELOG.md CALCULATIONS.md; do
+  if git cat-file -e ":docs/$name" 2>/dev/null; then
+    new=$(git show ":docs/$name" 2>/dev/null)
+  elif git cat-file -e ":$name" 2>/dev/null; then
+    new=$(git show ":$name" 2>/dev/null)
+  else
+    echo "pre-commit: $name is append-only and cannot be deleted" >&2; exit 1
+  fi
+  if git cat-file -e "HEAD:docs/$name" 2>/dev/null; then
+    old=$(git show "HEAD:docs/$name" 2>/dev/null)
+  elif git cat-file -e "HEAD:$name" 2>/dev/null; then
+    old=$(git show "HEAD:$name" 2>/dev/null)
+  else
+    continue
   fi
   case "$new" in
     "$old"*) ;;
-    *) echo "pre-commit: $f is append-only; add new lines instead of editing or deleting old ones" >&2; exit 1 ;;
+    *) echo "pre-commit: $name is append-only; add new lines instead of editing or deleting old ones" >&2; exit 1 ;;
   esac
 done
 if ! git cat-file -e :README.md 2>/dev/null; then

@@ -155,8 +155,22 @@ Se preferir rodar direto na sua máquina (Windows ou Linux):
 
 ---
 
+## 📂 Estrutura do Repositório
+
+O projeto segue as melhores práticas organizacionais de engenharia e separação de responsabilidades:
+- [`agents/`](./agents/): Personas de inteligência artificial, contratos autônomos e o arquivo plug-and-play consolidado [`AGENTE_MESTRE_UNIVERSAL.md`](./agents/AGENTE_MESTRE_UNIVERSAL.md).
+- [`docs/`](./docs/): Normas de engenharia ([`RULES.md`](./docs/RULES.md)), histórico de entregas ([`CHANGELOG.md`](./docs/CHANGELOG.md)), estado operacional ([`STATE.md`](./docs/STATE.md)) e cálculos de áudio ([`CALCULATIONS.md`](./docs/CALCULATIONS.md)).
+- [`src/`](./src/): Código-fonte modular do bot (DSP de áudio, gravação WAV, persistência SQLite, métricas Prometheus e sincronização Confluence).
+- [`tests/`](./tests/): Bateria automatizada de testes unitários e de integração (Node.js Test Runner).
+- [`monitoring/`](./monitoring/): Infraestrutura de observabilidade como código (Dashboards Grafana e Alertas Prometheus).
+- [`scripts/`](./scripts/): Ferramentas operacionais, scanners de incidentes e sincronização Git-Jira-Confluence.
+- [`dist/`](./dist/): Bundles portáteis compilados para execução em qualquer LLM.
+
+---
+
 ## Stack & Versions
 - node@20, discord.js@14, @snazzah/davey@0.1, @discordjs/voice@0.19
+
 
 ## Commands
 check: node --check bot.js && node --test tests/*.test.js
