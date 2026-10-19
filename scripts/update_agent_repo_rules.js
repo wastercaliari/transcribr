@@ -1,0 +1,21 @@
+const fs = require('fs');
+const path = require('path');
+
+const rulesPath = path.resolve('d:/IA Projects/Antigravity Projects/agent-master-devsecops/docs/RULES.md');
+let content = fs.readFileSync(rulesPath, 'utf8');
+
+const oldBlock = `11. **Tríplice Registro Contínuo Obrigatório (Git, Jira e Confluence):** Toda e qualquer entrega, alteração de código, refatoração, correção de bug ou evolução técnica DEVE ser obrigatoriamente registrada a cada passo nos 3 pilares do ecossistema: (1) Git/GitHub via commits semânticos e \`git push origin main\`, (2) Jira Project SCRUM via atualização de tarefas no Kanban, vinculação à Sprint ativa e enriquecimento do backlog, e (3) Confluence TBR na Bíblia do Projeto (registro de novos ADRs e atualização canônica das páginas). Nenhuma etapa é considerada concluída sem esse ciclo completo.
+12. **Vigilância e Correção Automática de Alertas de Segurança (Code Scanning / DevSecOps):** Sempre que for identificado qualquer alerta de segurança (GitHub CodeQL Code Scanning, TruffleHog Secrets ou npm audit) no repositório ou na esteira de CI, o agente DEVE agir imediatamente de forma proativa e automática: analisar o alerta com a API do GitHub (\`gh api repos/:owner/:repo/code-scanning/alerts/:id\`), aprender a recomendação oficial do scanner, gerar e aplicar o fix estrutural definitivo com testes de regressão, abrir Pull Request formal com checks verdes de CI e registrar a resolução no Jira e Confluence.
+13. **Observabilidade Ativa e Auto-Remediação Contínua (Prometheus, Grafana e Scanner Autônomo):** O ecossistema expõe métricas no padrão canônico do Prometheus (\`/metrics\`) e opera com stack provisionada como código (IaC) via Docker Compose. O agente DEVE escanear, monitorar métricas de saúde (memória Heap/RSS, CPU, latência STT, taxa de descarte de falas, integridade SQLite) e APIs do Prometheus/Grafana, detectando anomalias e executando playbooks automatizados de auto-remediação (poda de buffers, coleta de lixo, expurgo de falas corrompidas) antes que causem degradação ou indisponibilidade.`;
+
+const newBlock = `11. **Tríplice Registro Contínuo Obrigatório (Git, Issue Tracker e Wiki/Docs):** Toda e qualquer entrega, alteração de código, refatoração, correção de bug ou evolução técnica do Agent DEVE ser obrigatoriamente registrada a cada passo nos 3 pilares do ecossistema: (1) Git/GitHub no repositório oficial \`wastercaliari/agent-master-devsecops\` via commits semânticos e Pull Requests validados por CI, (2) Jira Project AGDEV (\`https://wastercaliari.atlassian.net/jira/software/projects/AGDEV/boards/3\`) via atualização de tarefas no Kanban e Epics estruturantes, e (3) Confluence Space AGDEV (\`https://wastercaliari.atlassian.net/wiki/spaces/AGDEV\`) na Bíblia do Agente (registro de novos ADRs e atualização canônica das páginas). Nenhuma etapa de evolução do Agent é considerada concluída sem esse ciclo completo.
+12. **Vigilância e Correção Automática de Alertas de Segurança (Code Scanning / DevSecOps):** Sempre que for identificado qualquer alerta de segurança (GitHub CodeQL Code Scanning, TruffleHog Secrets, Snyk ou npm/pip/cargo audit) no repositório ou na esteira de CI, o agente DEVE agir imediatamente de forma proativa e automática: analisar o alerta na API ou relatório de segurança, identificar a causa-raiz (CWE), gerar e aplicar o fix estrutural definitivo com testes de regressão, abrir Pull Request formal com checks verdes de CI e registrar a resolução no Issue Tracker e documentação.
+13. **Observabilidade Ativa e Auto-Remediação Contínua (Prometheus, Grafana e Scanner Autônomo):** O ecossistema expõe métricas no padrão canônico do Prometheus (\`/metrics\`) e opera com telemetria contínua. O agente DEVE escanear, monitorar métricas de saúde (memória Heap/RSS, CPU, latência de serviços, taxa de descarte de eventos, integridade de storage/banco de dados) e alertas, detectando anomalias e executando playbooks automatizados de auto-remediação (poda de buffers, expurgo de caches expirados, coleta de lixo, circuit breaking) antes que causem degradação ou indisponibilidade.`;
+
+if (content.includes(oldBlock)) {
+  content = content.replace(oldBlock, newBlock);
+  fs.writeFileSync(rulesPath, content, 'utf8');
+  console.log('RULES.md updated with AGDEV in agent-master-devsecops.');
+} else {
+  console.log('Block not found in RULES.md');
+}
