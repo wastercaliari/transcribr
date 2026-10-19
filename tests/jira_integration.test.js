@@ -1,4 +1,4 @@
-const { describe, it } = require('node:test');
+const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
 const {
   getJiraAuth,
@@ -9,6 +9,19 @@ const {
 const { handleJira } = require('../bot');
 
 describe('Bidirectional Jira Integration Module (SCRUM-58)', () => {
+  const originalEmail = process.env.ATLASSIAN_EMAIL;
+  const originalToken = process.env.ATLASSIAN_API_TOKEN;
+
+  before(() => {
+    process.env.ATLASSIAN_EMAIL = process.env.ATLASSIAN_EMAIL || 'test-user@example.com';
+    process.env.ATLASSIAN_API_TOKEN = process.env.ATLASSIAN_API_TOKEN || 'ATATT-test-token-12345';
+  });
+
+  after(() => {
+    if (originalEmail) process.env.ATLASSIAN_EMAIL = originalEmail; else delete process.env.ATLASSIAN_EMAIL;
+    if (originalToken) process.env.ATLASSIAN_API_TOKEN = originalToken; else delete process.env.ATLASSIAN_API_TOKEN;
+  });
+
   describe('getJiraAuth & textToAdf', () => {
     it('deve obter credenciais do Jira do ambiente ou arquivo local', () => {
       const auth = getJiraAuth();
