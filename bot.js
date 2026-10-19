@@ -60,6 +60,7 @@ const { speechStorage } = require('./src/speech_storage.js');
 const { generatePrometheusMetrics, recordHttpRequest } = require('./src/metrics.js');
 const { VoiceDiarizer } = require('./src/voice_diarization.js');
 const { renderDashboardHtml } = require('./src/web_dashboard.js');
+const { normalizeTargetLanguage, getLanguageInstructions } = require('./src/multilingual_translation.js');
 
 const guildDiarizers = new Map();
 function getGuildDiarizer(guildId) {
@@ -803,6 +804,15 @@ const COMMANDS = [
             .setDescription('Quantidade de segundos para trás (ex.: 90)')
             .setMinValue(0)
             .setMaxValue(86400)
+            .setRequired(false))
+        .addStringOption(o => o.setName('idioma')
+            .setDescription('Idioma da ata gerada (pt, en, es ou bilingue)')
+            .addChoices(
+                { name: 'Português (Padrão)', value: 'pt' },
+                { name: 'English (US)', value: 'en' },
+                { name: 'Español', value: 'es' },
+                { name: 'Bilíngue (PT & EN)', value: 'bilingual' }
+            )
             .setRequired(false)),
     new SlashCommandBuilder().setName('limpar').setDescription('Apaga TODAS as mensagens do canal de transcrição (transcribr-).')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
@@ -1209,6 +1219,8 @@ function buildSummaryPrompt(entries, totalSeconds, options = {}) {
     const transcriptLines = entries.map(fmtLine);
 
     const { text: transcriptText, sampledCount, totalCount, isSampled } = sampleTranscriptLines(transcriptLines, maxChars);
+    const targetLanguage = normalizeTargetLanguage(options.targetLanguage || 'pt');
+    const langInstructions = getLanguageInstructions(targetLanguage);
 
     const prompt =
 `Você é um assistente sênior especialista em síntese de reuniões, alinhamentos e conversas em equipe.
@@ -1220,6 +1232,7 @@ Abaixo está a transcrição cronológica das falas de voz de uma chamada no Dis
 • Horário da Última Fala Registrada: ${lastSpokenStr}
 • Total de Falas Analisadas: ${sampledCount} de ${totalCount} falas gravadas
 • Participantes Ativos: ${speakersStr}
+• Idioma Alvo da Ata: ${targetLanguage.toUpperCase()}
 
 SUA MISSÃO:
 Gere uma ATA / RESUMO COMPLETO, DETALHADO, ESTRUTURADO E FIEL AO CONTEÚDO REAL.
@@ -1251,6 +1264,9 @@ DIRETRIZES DE FIDELIDADE:
 - Se a transcrição contiver gírias, expressões coloquiais ou termos técnicos, interprete o sentido real no contexto da conversa.
 - NUNCA use tabelas Markdown com barras verticais ("|"). Use exclusivamente tópicos verticais ("•"), subtítulos e negrito.
 
+DIRETRIZES DE IDIOMA E TRADUÇÃO:
+${langInstructions}
+
 TRANSCRIÇÃO CRONOLÓGICA DAS FALAS:
 ${transcriptText}`;
 
@@ -1261,11 +1277,12 @@ ${transcriptText}`;
         totalCount,
         isSampled,
         transcriptLines,
-        speakers: uniqueSpeakers
+        speakers: uniqueSpeakers,
+        targetLanguage
     };
 }
 
-async function generateAndSendResumo(i, totalSeconds) {
+async function generateAndSendResumo(i, totalSeconds, options = {}) {
     if (!i.deferred && !i.replied) {
         await i.deferReply({ flags: MessageFlags.Ephemeral });
     }
@@ -1277,12 +1294,14 @@ async function generateAndSendResumo(i, totalSeconds) {
             '• `/resumo segundos:90`\n' +
             '• `/resumo minutos:30`\n' +
             '• `/resumo horas:2`\n' +
-            '• `/resumo horas:1 minutos:30`'
+            '• `/resumo horas:1 minutos:30`\n' +
+            '• `/resumo minutos:45 idioma:en`'
         );
     }
 
     if (!GROQ_API_KEY) return i.editReply('❌ Resumo indisponível: configure GROQ_API_KEY no .env.');
 
+    const targetLanguage = options.targetLanguage || 'pt';
     const tempoDesc = formatTimeWindow(totalSeconds);
     const sinceMs = Date.now() - (totalSeconds * 1000);
     const entries = readLog(i.guildId, sinceMs);
@@ -1291,7 +1310,7 @@ async function generateAndSendResumo(i, totalSeconds) {
         return i.editReply(`Não há falas registradas nos últimos ${tempoDesc}.`);
     }
 
-    const summaryData = buildSummaryPrompt(entries, totalSeconds);
+    const summaryData = buildSummaryPrompt(entries, totalSeconds, { targetLanguage });
     const avisoAmostragem = summaryData.isSampled ?
         ` *(analisadas ${summaryData.sampledCount} falas distribuídas cronologicamente de ${summaryData.totalCount})*` : '';
 
@@ -1307,7 +1326,8 @@ async function generateAndSendResumo(i, totalSeconds) {
     const summary = formatDiscordMarkdown(rawSummary);
 
     try {
-        const head = `📋 **Resumo & Ata Técnica dos últimos ${tempoDesc}** — ${summaryData.sampledCount} fala(s)${avisoAmostragem} *(gerado por ${result.model})*\n\n`;
+        const langBadge = targetLanguage !== 'pt' ? ` [${targetLanguage.toUpperCase()}]` : '';
+        const head = `📋 **Resumo & Ata Técnica${langBadge} dos últimos ${tempoDesc}** — ${summaryData.sampledCount} fala(s)${avisoAmostragem} *(gerado por ${result.model})*\n\n`;
         for (const part of splitMessage(head + summary)) {
             await i.user.send(part);
         }
@@ -1377,8 +1397,9 @@ async function handleResumo(i) {
     const hours = i.options.getNumber('horas') || 0;
     const minutes = i.options.getNumber('minutos') || 0;
     const seconds = i.options.getNumber('segundos') || 0;
+    const targetLanguage = i.options.getString('idioma') || 'pt';
     const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
-    return await generateAndSendResumo(i, totalSeconds);
+    return await generateAndSendResumo(i, totalSeconds, { targetLanguage });
 }
 
 async function handleAudio(i) {
@@ -1684,6 +1705,8 @@ module.exports = {
     stylePrompt,
     getGuildDiarizer,
     VoiceDiarizer,
-    renderDashboardHtml
+    renderDashboardHtml,
+    normalizeTargetLanguage,
+    getLanguageInstructions
 };
 
