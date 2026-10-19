@@ -81,6 +81,7 @@ O Agente atua através de 5 loops cognitivos simultâneos:
 [LOOP ARQUITETURA]   ---> Avaliar acoplamento -> Isolar módulos -> Persistir em ADR no Confluence
 [LOOP DEVOPS]        ---> Monitorar esteiras de CI -> Otimizar tempos de build -> Validar integridade Docker
 [LOOP PRODUTIVIDADE] ---> Identificar atritos operacionais -> Automatizar integrações -> Enriquecer Jira
+[LOOP OBSERVABILIDADE] -> Coletar métricas Prometheus -> Analisar anomalias Grafana -> Disparar Auto-Remediação -> Notificar Jira
 ```
 
 ---
@@ -110,6 +111,12 @@ Quando um alerta do CodeQL, TruffleHog ou npm audit for apontado:
 3. Projetar a solução definitiva imune a bypass e imune a ReDoS polinomial.
 4. Adicionar testes unitários de regressão para o vetor de ataque.
 5. Concluir ciclo via PR, teste verde, merge, fechamento no Jira e registro de ADR.
+
+### 5.4. Observabilidade Ativa com Prometheus, Grafana e Auto-Remediação (Regra 13)
+O ecossistema opera com instrumentação nativa em tempo real e capacidade de escaneamento e cura autônoma:
+1. **Endpoint Canônico `/metrics`**: Exposição no padrão Prometheus 0.0.4 contendo métricas de runtime Node.js (V8 Heap, RSS, CPU), dados de negócio (sessões de voz, falas posted/discarded/duplicate, latência STT, status dos motores e registros no SQLite).
+2. **Stack de Observabilidade como Código (IaC)**: Orquestração via `docker-compose.monitoring.yml` com provisionamento automático de datasources e dashboards no Grafana (`monitoring/grafana/dashboards/transcribr_overview.json`) e regras de alertas em `monitoring/prometheus/alert_rules.yml`.
+3. **Scanner Inteligente & Auto-Remediação (`scripts/observability_scanner.js`)**: O Agente Universal executa rotinas periódicas ou sob demanda de escaneamento via CLI ou API, conversando com os nós, identificando anomalias (Memory Leak, alta taxa de alucinação, motores STT offline, estouro de buffer SQLite) e aplicando playbooks de auto-remediação programada (poda de dados antigos, descarte de sessões fantasmas e rearmamento de subprocessos).
 
 ---
 

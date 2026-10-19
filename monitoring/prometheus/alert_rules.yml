@@ -1,0 +1,57 @@
+# Regras de Alerta Prometheus para TranscriBR (SCRUM-64)
+groups:
+  - name: transcribr_alerts
+    rules:
+      - alert: TranscriBRInstanceDown
+        expr: up{job="transcribr"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instância do TranscriBR está fora do ar"
+          description: "O scraper do Prometheus não conseguiu coletar métricas do endpoint /metrics nos últimos 60 segundos."
+
+      - alert: TranscriBRHighMemoryHeap
+        expr: nodejs_memory_heap_used_bytes > 524288000 # 500 MB
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Consumo elevado de Heap Memory (>500MB)"
+          description: "O processo Node.js está consumindo {{ $value | humanize1024 }} de memória Heap V8 por mais de 2 minutos."
+
+      - alert: TranscriBRHighMemoryRss
+        expr: nodejs_memory_rss_bytes > 838860800 # 800 MB
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Consumo de RSS elevado (>800MB)"
+          description: "O processo residente em memória física atingiu {{ $value | humanize1024 }}."
+
+      - alert: TranscriBRAllSttEnginesDown
+        expr: (transcribr_stt_engine_available{engine="groq"} == 0) and (transcribr_stt_engine_available{engine="local"} == 0)
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Nenhum motor de transcrição STT disponível"
+          description: "Ambos os motores Groq Cloud e Faster-Whisper local estão inacessíveis. Novas falas não serão transcritas."
+
+      - alert: TranscriBRHighDiscardRate
+        expr: (rate(transcribr_utterances_total{status="discarded"}[5m]) / (rate(transcribr_utterances_total{status="posted"}[5m]) + rate(transcribr_utterances_total{status="discarded"}[5m]) > 0)) > 0.45
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Taxa de descarte de falas anômala (>45%)"
+          description: "Mais de 45% das falas capturadas estão sendo descartadas por alucinação ou ruído no pipeline DSP."
+
+      - alert: TranscriBRBotStuckPaused
+        expr: transcribr_bot_paused == 1
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "Bot TranscriBR está em modo pausado há mais de 15 minutos"
+          description: "O bot permanece pausado via comando /pausar. Verifique se o operador esqueceu de reativar via /continuar."

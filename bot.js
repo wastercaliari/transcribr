@@ -57,6 +57,7 @@ const {
     getAudioSessionStats
 } = require('./src/audio_recorder.js');
 const { speechStorage } = require('./src/speech_storage.js');
+const { generatePrometheusMetrics, recordHttpRequest } = require('./src/metrics.js');
 
 const DISCORD_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -1061,14 +1062,19 @@ async function syncAtaToConfluence({ title, summaryMarkdown, transcriptLines, ti
         }
     };
 
-    const res = await fetch(`https://${domain}/wiki/rest/api/content`, {
-        method: 'POST',
-        headers: {
-            'Authorization': 'Basic ' + auth,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    });
+    let res;
+    try {
+        res = await fetch(`https://${domain}/wiki/rest/api/content`, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Basic ' + auth,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+    } catch (netErr) {
+        throw new Error(`Falha ao sincronizar com Confluence: ${netErr.message}`);
+    }
 
     if (res.ok) {
         const data = await res.json();
@@ -1389,6 +1395,7 @@ const HEALTH_PORT = Number(process.env.PORT || process.env.HEALTH_PORT || 8080);
 function createHealthServer() {
     return http.createServer((req, res) => {
         if (req.url === '/health' || req.url === '/') {
+            recordHttpRequest('/health');
             const data = {
                 status: 'ok',
                 bot: client.user ? client.user.tag : 'offline',
@@ -1407,6 +1414,24 @@ function createHealthServer() {
             res.end(JSON.stringify(data));
             return;
         }
+        if (req.url === '/metrics') {
+            recordHttpRequest('/metrics');
+            const speechStats = speechStorage?.getStats ? speechStorage.getStats() : { totalEntries: 0 };
+            const metricsText = generatePrometheusMetrics({
+                uptime: process.uptime(),
+                memory: process.memoryUsage(),
+                cpu: process.cpuUsage(),
+                activeSessions: sessions ? sessions.size : 0,
+                paused: state ? (state.paused ? 1 : 0) : 0,
+                telemetry: getTelemetryMetrics(),
+                speechCount: speechStats.totalEntries || 0,
+                engines: availableEngines()
+            });
+            res.writeHead(200, { 'Content-Type': 'text/plain; version=0.0.4; charset=utf-8' });
+            res.end(metricsText);
+            return;
+        }
+        recordHttpRequest(req.url);
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Not Found');
     });
@@ -1466,6 +1491,8 @@ module.exports = {
     logLine,
     readLog,
     pruneLog,
-    stripHtmlTags
+    stripHtmlTags,
+    generatePrometheusMetrics,
+    recordHttpRequest
 };
 
