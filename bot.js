@@ -61,6 +61,7 @@ const { generatePrometheusMetrics, recordHttpRequest } = require('./src/metrics.
 const { VoiceDiarizer } = require('./src/voice_diarization.js');
 const { renderDashboardHtml } = require('./src/web_dashboard.js');
 const { normalizeTargetLanguage, getLanguageInstructions } = require('./src/multilingual_translation.js');
+const { createJiraIssue, extractActionItemsFromAta } = require('./src/jira_integration.js');
 
 const guildDiarizers = new Map();
 function getGuildDiarizer(guildId) {
@@ -822,7 +823,14 @@ const COMMANDS = [
             .setDescription('Minutos para trás (ex: 15). Se omitido, exporta toda a sessão recente.')
             .setMinValue(1)
             .setMaxValue(1440)
-            .setRequired(false))
+            .setRequired(false)),
+    new SlashCommandBuilder().setName('jira').setDescription('Integração com Jira Cloud para criação de tarefas faladas e acompanhamento.')
+        .addSubcommand(sub => sub.setName('criar-tarefa')
+            .setDescription('Cria uma nova tarefa no Jira Cloud vinculada à reunião.')
+            .addStringOption(o => o.setName('titulo').setDescription('Título (Summary) da tarefa no Jira').setRequired(true))
+            .addStringOption(o => o.setName('descricao').setDescription('Descrição detalhada ou contexto da tarefa').setRequired(false))
+            .addStringOption(o => o.setName('projeto').setDescription('Chave do projeto (ex.: SCRUM)').setRequired(false))
+            .addStringOption(o => o.setName('tipo').setDescription('Tipo da issue (ex.: Task, Bug, Story)').setRequired(false)))
 ].map(c => c.toJSON());
 
 function splitMessage(text, max = 1900) {
@@ -1421,6 +1429,31 @@ async function handleAudio(i) {
     });
 }
 
+async function handleJira(i) {
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
+    const sub = i.options.getSubcommand();
+    if (sub === 'criar-tarefa') {
+        const titulo = i.options.getString('titulo');
+        const descricao = i.options.getString('descricao') || `Tarefa criada no Discord por ${i.user?.username || 'usuário'}.`;
+        const projeto = i.options.getString('projeto') || 'SCRUM';
+        const tipo = i.options.getString('tipo') || 'Task';
+
+        const result = await createJiraIssue({
+            summary: titulo,
+            description: descricao,
+            projectKey: projeto,
+            issueType: tipo,
+            labels: ['transcribr', 'discord-voice']
+        });
+
+        if (!result.success) {
+            return await i.editReply(`❌ Falha ao criar tarefa no Jira: ${result.error}`);
+        }
+
+        return await i.editReply(`✅ **Tarefa criada com sucesso no Jira!**\n• **Chave:** [${result.key}](${result.url})\n• **Projeto:** ${projeto.toUpperCase()}\n• **Título:** ${titulo}`);
+    }
+}
+
 client.on('interactionCreate', async (i) => {
     if (i.isButton()) {
         try {
@@ -1486,6 +1519,8 @@ client.on('interactionCreate', async (i) => {
             await i.reply({ content: `${baseMsg}\n${teleMsg}`, flags: MessageFlags.Ephemeral });
         } else if (i.commandName === 'audio') {
             await handleAudio(i);
+        } else if (i.commandName === 'jira') {
+            await handleJira(i);
         }
     } catch (e) {
         console.error('Erro no comando:', e.message);
@@ -1707,6 +1742,9 @@ module.exports = {
     VoiceDiarizer,
     renderDashboardHtml,
     normalizeTargetLanguage,
-    getLanguageInstructions
+    getLanguageInstructions,
+    createJiraIssue,
+    extractActionItemsFromAta,
+    handleJira
 };
 
