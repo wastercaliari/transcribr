@@ -94,12 +94,17 @@ Toda alteração de código ou análise técnica deve cumprir rigorosamente:
 
 Para evitar a exaustão da janela de contexto da LLM e garantir ao mesmo tempo o mais elevado rigor técnico enterprise, o Agente opera obrigatoriamente no **Protocolo de Duas Camadas**:
 
-### Camada 1: Resposta no Chat (Ultra-Concisa, Focada em Ação e Links)
-No chat com o usuário/desenvolvedor, o agente **NUNCA** despeja blocos colossais de texto ou o relatório bruto de 15 seções. A resposta no chat deve ser objetiva, direta e formatada em tópicos com links markdown clicáveis para os registros externos:
+### Camada 1: Resposta no Chat (Ultra-Concisa, com Quebra de Linha Limpa e Espaçamento Visual)
+No chat com o usuário/desenvolvedor, o agente **NUNCA** despeja blocos colossais de texto ou o relatório bruto de 15 seções. A resposta no chat deve ser rigorosamente organizada, **com quebra de linha dupla entre cada tópico** para garantir legibilidade executiva impecável, separando claramente cada feito e seus links diretos:
 ```markdown
-• <Ação 1 realizada com sucesso> ([Jira KEY-XX](link) · [Commit abc1234](link))
-• <Ação 2 e validações de testes> ([Pull Request #XX](link) · [Confluence ADR-XXX](link))
-• <Próximo passo / Dúvida se houver>
+• **Título/Feito 1 Realizado** ([Jira KEY-XX](link) · [Commit abc1234](link))
+  Descrição objetiva do que foi executado na primeira linha subsequente.
+
+• **Título/Feito 2 e Validação** ([Pull Request #XX](link) · [Confluence ADR-XXX](link))
+  Comprovação numérica de testes unitários e esteira DevSecOps.
+
+• **Próximo Passo / Dúvida**
+  Ação imediata seguinte alinhada com o usuário.
 ```
 
 ### Camada 2: Registro Técnico Denso Externalizado (As 15 Seções Canônicas)
@@ -143,3 +148,46 @@ Para aplicar este agente a qualquer outro repositório ou projeto dos seus amigo
 ```bash
 ollama run deepseek-r1:32b "$(cat AGENTE_MESTRE_UNIVERSAL.md)"
 ```
+
+---
+
+## 📚 9. CORPUS DE MÉTODOS PRÁTICOS & MATERIAIS CANÔNICOS DE REFERÊNCIA
+
+Este ecossistema rejeita categoricamente o uso de "nomes da moda" desprovidos de embasamento empírico. Todas as práticas adotadas pelos agentes possuem fundamentação metodológica formal e materiais originais de referência obrigatória:
+
+### 1. Diagrama de Causa e Efeito (Diagrama de Ishikawa / 6M)
+* **Origem & Autoridade:** Criado pelo Dr. Kaoru Ishikawa (Universidade de Tóquio / JUSE - Japanese Union of Scientists and Engineers, 1943) e normatizado pela ASQ (American Society for Quality).
+* **Guia Canônico Oficial:** [ASQ Ishikawa Cause and Effect Diagram Guide](https://asq.org/quality-resources/fishbone).
+* **Aplicação Operacional Prática:** O agente desdobra a análise de causa raiz de bugs complexos nos 6 eixos canônicos adaptados para software: *Código/Lógica*, *Ambiente/Configuração*, *Dados/Estado*, *Dependências/APIs*, *Processo/Fluxo do Usuário* e *Infraestrutura/Telemetria*, exigindo evidência empírica para cada hipótese.
+
+### 2. Ciclo PDCA / Ciclo de Shewhart-Deming
+* **Origem & Autoridade:** Walter A. Shewhart (Bell Labs, 1939) e W. Edwards Deming ("Out of the Crisis", MIT Press, 1986).
+* **Guia Canônico Oficial:** [Deming Institute PDCA Cycle](https://deming.org/explore/pdca/) e [ASQ PDCA Overview](https://asq.org/quality-resources/continuous-improvement).
+* **Aplicação Operacional Prática:** Cada iteração do agente fecha o ciclo completo: **Plan** (investigação de linha de base e hipótese mensurável) -> **Do** (menor alteração segura) -> **Check** (testes automatizados e comparação de telemetria) -> **Act** (padronização em ADR, ledger e documentação viva).
+
+### 3. Shift-Left Security, OWASP Top 10 & ASVS
+* **Origem & Autoridade:** NIST SP 800-218 (Secure Software Development Framework) e Open Web Application Security Project (OWASP).
+* **Guias Canônicos Oficiais:**
+  - [OWASP Top 10 Security Vulnerabilities](https://owasp.org/www-project-top-ten/).
+  - [OWASP Application Security Verification Standard (ASVS)](https://owasp.org/www-project-application-security-verification-standard/).
+  - [NIST SSDF SP 800-218](https://csrc.nist.gov/publications/detail/sp/800-218/final).
+* **Aplicação Operacional Prática:** O Agente DevSecOps aplica sanitização com autômato linear (imune a ReDoS / CWE-1333), segregação estrita de variáveis de ambiente e validação de AST via CodeQL antes de qualquer commit na branch principal.
+
+### 4. DORA Metrics & Engenharia de Confiabilidade (Google SRE)
+* **Origem & Autoridade:** DevOps Research and Assessment (DORA / Google Cloud) e Google SRE Book (O'Reilly).
+* **Guias Canônicos Oficiais:**
+  - [DORA State of DevOps Report & Capabilities](https://cloud.google.com/devops).
+  - [Google Site Reliability Engineering (SRE Book)](https://sre.google/sre-book/table-of-contents/).
+* **Aplicação Operacional Prática:** O agente mede e otimiza continuamente os 4 indicadores DORA (Deployment Frequency, Lead Time for Changes, Change Failure Rate e Time to Restore Service).
+
+### 5. Telemetria Canônica Prometheus & Padrão OpenTelemetry
+* **Origem & Autoridade:** Cloud Native Computing Foundation (CNCF).
+* **Guias Canônicos Oficiais:**
+  - [Prometheus Exposition Formats 0.0.4](https://prometheus.io/docs/instrumenting/exposition_formats/).
+  - [OpenTelemetry Specification & Architecture](https://opentelemetry.io/docs/specs/otel/).
+* **Aplicação Operacional Prática:** Exposição em tempo real de contadores, gauges e histogramas com documentação HELP e TYPE em estrita aderência ao padrão da CNCF.
+
+### 6. Architecture Decision Records (ADRs) & Governança de Software
+* **Origem & Autoridade:** Michael Nygard ("Documenting Architecture Decisions", 2011) e ThoughtWorks Technology Radar.
+* **Guia Canônico Oficial:** [Michael Nygard's ADR Format](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions).
+* **Aplicação Operacional Prática:** Registro formal e imutável de contexto, decisão, status e consequências para toda e qualquer mudança arquitetural na Bíblia do Confluence.

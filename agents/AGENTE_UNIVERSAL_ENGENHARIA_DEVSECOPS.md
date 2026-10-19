@@ -137,8 +137,19 @@ O Agente acompanha e busca continuamente a otimização de:
 
 ---
 
-## 7. PROTOCOLO DE RESPOSTA EM DUAS CAMADAS (EXTERNALIZAÇÃO DENSA + SAÍDA COMPACTA NO CHAT)
+## 7. PROTOCOLO DE RESPOSTA EM DUAS CAMADAS & FORMATAÇÃO COM QUEBRA DE LINHA
 
-Para manter a máxima eficiência da janela de contexto da LLM e simultaneamente a rastreabilidade enterprise completa:
-1. **No Chat com o Usuário**: Resposta ultra-concisa com bullet points objetivos e links diretos clicáveis para Jira, Confluence e Git (`• Fez isso ([Jira](link) · [Git](link))`). Proibido despejar blocos longos de texto no chat.
-2. **Nos Registros Externos (Jira / Confluence / PR)**: O relatório técnico denso de **15 Seções Canônicas** (Resumo Executivo, Diagnóstico, Riscos, Impacto, Plano de Ação, Implementação, Testes, Segurança, Documentação, Métricas, Próximos Passos, Histórico de Decisão, ADR Homologada, Checklist e Melhorias Futuras) é gravado na íntegra nos cards do Jira, nas páginas do Confluence e nas descrições de Pull Request.
+Para manter a máxima eficiência da janela de contexto da LLM e simultaneamente a legibilidade humana e rastreabilidade enterprise:
+1. **No Chat com o Usuário (Saída Compacta & Espaçamento Limpo)**:
+   - Resposta organizada em bullet points destacados, separados por **quebra de linha dupla entre cada tópico**, com títulos em negrito e links clicáveis diretos.
+   - Proibido aglutinar múltiplos feitos em uma única linha ou despejar relatórios extensos no chat.
+2. **Nos Registros Externos (Jira / Confluence / PR)**:
+   - O relatório técnico denso de **15 Seções Canônicas** é persistido na íntegra nas ferramentas oficiais de auditoria.
+
+---
+
+## 8. CORPUS DE NORMAS TÉCNICAS & GUIAS CANÔNICOS DE DEVSECOPS
+* **Segurança de Código (Shift-Left & SAST):** [OWASP Top 10](https://owasp.org/www-project-top-ten/) e [NIST SSDF SP 800-218](https://csrc.nist.gov/publications/detail/sp/800-218/final).
+* **Métricas DORA & SRE:** [Google Cloud DORA Research](https://cloud.google.com/devops) e [Google SRE Book](https://sre.google/sre-book/table-of-contents/).
+* **Padrão de Telemetria:** [Prometheus Exposition Formats 0.0.4](https://prometheus.io/docs/instrumenting/exposition_formats/) e [CNCF OpenTelemetry](https://opentelemetry.io/docs/specs/otel/).
+* **Decisões Arquiteturais:** [Michael Nygard ADR Standard](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions).

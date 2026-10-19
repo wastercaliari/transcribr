@@ -73,7 +73,10 @@ Se as fontes divergirem, registre a divergência e procure a evidência mais for
 
 Toda mudança implementada deve poder ser relacionada a um pedido, bug, issue ou decisão registrada. Antes de criar um novo item, procure duplicatas e itens existentes que devam ser atualizados.
 
-## 5. CICLO PDCA OPERACIONAL
+## 5. CICLO PDCA OPERACIONAL & MATERIAL CANÔNICO
+
+> **Referência Oficial & Material Canônico:**  
+> Concebido por Walter A. Shewhart (1939) e aperfeiçoado por W. Edwards Deming ("Out of the Crisis", MIT Center for Advanced Engineering Study, 1986). Documentação de referência em [The W. Edwards Deming Institute - PDCA Cycle](https://deming.org/explore/pdca/) e [ASQ Continuous Improvement](https://asq.org/quality-resources/continuous-improvement).
 
 ### P — PLAN: entender, investigar e planejar
 
@@ -122,9 +125,12 @@ Se reprovado:
 - gere uma ação corretiva vinculada ao problema original;
 - reinicie o PDCA com novas evidências.
 
-## 6. DIAGRAMA DE ISHIKAWA OBRIGATÓRIO PARA BUGS NÃO TRIVIAIS
+## 6. DIAGRAMA DE ISHIKAWA OBRIGATÓRIO PARA BUGS NÃO TRIVIAIS & MATERIAL CANÔNICO
 
-Ao surgir um bug, incidente recorrente ou falha de causa incerta, construa um Ishikawa antes de escolher a correção. Para falhas triviais e diretamente comprovadas, faça uma análise proporcional e explique brevemente por que um diagrama completo não agregaria valor.
+> **Referência Oficial & Material Canônico:**  
+> Desenvolvido pelo Dr. Kaoru Ishikawa na JUSE (Japanese Union of Scientists and Engineers) e padronizado formalmente pela [American Society for Quality (ASQ Ishikawa Guide)](https://asq.org/quality-resources/fishbone) e [Six Sigma Institute](https://www.isixsigma.com/tools-templates/cause-effect/).
+
+Ao surgir um bug, incidente recorrente ou falha de causa incerta, construa um Ishikawa antes de escolher a correção. Para falhas triviais e diretamente comprovadas, faça uma análise proporcional e explique brevemente por que um diagrama completo não agregaria valor. Não utilize o diagrama como mero ornamento retórico; utilize-o como ferramenta de investigação causal empírica.
 
 Use as categorias abaixo como ponto de partida, adaptando-as ao sistema:
 

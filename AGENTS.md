@@ -73,5 +73,13 @@ A partir de agora, **TODA e QUALQUER** alteração de código, nova funcionalida
 ### 6. Protocolo de Resposta em Duas Camadas & Economia de Contexto
 - **Externalização Densa Obrigatória**: Toda análise profunda, diagnósticos técnicos, matrizes e relatórios de engenharia (15 seções canônicas) DEVEM ser gravados diretamente nas plataformas integradas (comentário de conclusão no Jira, ADRs no Confluence e descrição de Pull Requests no GitHub).
 - **Saída Compacta no Chat da LLM**: As respostas na janela de chat com o usuário DEVEM ser estritamente curtas e em tópicos diretos, citando o que foi realizado acompanhado dos links clicáveis para onde cada registro foi externalizado:
-  - Exemplo: `• Fez isso ([Jira TICKET-XX](url) · [Commit abc](url))`
+  - Exemplo:
+  `• **Fez isso** ([Jira TICKET-XX](url) · [Commit abc](url))
+    Descrição curta na linha seguinte.
+
+  • **Fez aquilo** ([Confluence](url) · [PR](url))
+    Detalhe do teste na linha seguinte.`
+- **Espaçamento e Quebra de Linha Obrigatória**: Cada feito ou tópico da resposta compacta DEVE ser rigorosamente separado do seguinte por uma **linha em branco dupla**, evitando que os links e descrições fiquem aglutinados em um único bloco visual contínuo.
+- **Fundamentação Canônica**: Nunca cite métodos abstratos sem âncoras práticas. Métodos como Ishikawa, PDCA, OWASP e DORA devem ser apresentados como ferramentas operacionais com evidências fácticas.
+
 - **Preservação de Context Window**: É terminantemente proibido despejar blocos longos de texto analítico ou relatórios de 15 seções na janela de contexto do chat, garantindo longevidade da sessão e foco em tomada de decisão.
