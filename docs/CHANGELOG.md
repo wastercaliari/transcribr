@@ -37,3 +37,4 @@
 2026-10-18 [DONE] @AGENTE_MESTRE_UNIVERSAL.md Criacao de arquivo unico consolidado para compartilhamento plug-and-play de agentes com amigos (SCRUM-68)
 2026-10-18 [REFACTOR] @agents @docs Reestruturacao de diretorios em pastas dedicadas /agents e /docs com catalogos README e preservacao de CI/CD (SCRUM-69)
 2026-10-18 [DOCS] @agents/AGENTE_MESTRE_UNIVERSAL.md Parametrizacao agnostica universal, matriz de severidades e guia de instalacao plug-and-play para qualquer projeto (SCRUM-70)
+2026-10-18 [FEAT] @scripts/create_enterprise_agents_pack.js Criacao de pacote ZIP enterprise das pastas /agents e /docs com prompt canonico de orquestracao multi-agente (SCRUM-72)
