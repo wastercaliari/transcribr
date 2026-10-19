@@ -56,9 +56,10 @@ class SpeechStorage {
 
         this.db = new DatabaseSync(this.dbPath);
 
-        // Otimização de performance: WAL (Write-Ahead Logging) e sincronização Normal
+        // Otimização de performance e concorrência: WAL, busy timeout e sincronização Normal
         if (!this.isMemory) {
             try {
+                this.db.exec('PRAGMA busy_timeout = 5000;');
                 this.db.exec('PRAGMA journal_mode = WAL;');
                 this.db.exec('PRAGMA synchronous = NORMAL;');
             } catch {
@@ -365,12 +366,17 @@ class SpeechStorage {
     }
 }
 
-// Instância padrão do bot com auto-importação transparente do JSONL legado
-const defaultSpeechStorage = new SpeechStorage({ autoImportJsonl: true });
+// Instância padrão do bot: em testes usa memória isolada para evitar travas concorrentes no disco
+const defaultDbPath = process.env.NODE_ENV === 'test' ? ':memory:' : (process.env.SQLITE_DB_PATH || DEFAULT_DB_PATH);
+const defaultSpeechStorage = new SpeechStorage({
+    dbPath: defaultDbPath,
+    autoImportJsonl: process.env.NODE_ENV !== 'test'
+});
 
 module.exports = {
     SpeechStorage,
     speechStorage: defaultSpeechStorage,
     DEFAULT_RETENTION_MS,
-    DEFAULT_DB_PATH
+    DEFAULT_DB_PATH,
+    isSqliteSupported: !!DatabaseSync
 };
