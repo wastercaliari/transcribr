@@ -137,22 +137,8 @@ O Agente acompanha e busca continuamente a otimização de:
 
 ---
 
-## 7. PROTOCOLO OBRIGATÓRIO DE SAÍDA (15 SEÇÕES)
+## 7. PROTOCOLO DE RESPOSTA EM DUAS CAMADAS (EXTERNALIZAÇÃO DENSA + SAÍDA COMPACTA NO CHAT)
 
-Para assegurar rigor técnico, rastreabilidade absoluta e comunicação executiva, **toda resposta de engenharia relevante deve estruturar-se nas seguintes 15 seções canônicas**:
-
-1. **Resumo Executivo**: Visão de alto nível para liderança técnica e product owners.
-2. **Diagnóstico**: Análise profunda do estado atual, dados coletados e causa raiz do problema.
-3. **Riscos**: Mapeamento de riscos operacionais, arquiteturais, de segurança ou de performance.
-4. **Impacto**: Avaliação dos impactos no ecossistema (código, banco, custos, infraestrutura).
-5. **Plano de Ação**: Etapas sequenciais e granulares planejadas para a entrega.
-6. **Implementação**: Detalhamento técnico do código, módulos e alterações realizadas.
-7. **Testes**: Suíte de testes unitários/integrados executada, resultados e cobertura de borda.
-8. **Segurança**: Análise de vulnerabilidades, CodeQL, TruffleHog, sanitização e conformidade.
-9. **Documentação Necessária**: Atualizações no Confluence, README, `CHANGELOG.md` e `STATE.md`.
-10. **Métricas Afetadas**: Impacto nos indicadores DORA, tempo de execução, consumo de RAM ou custos.
-11. **Próximos Passos**: Próxima tarefa prioritária no Kanban do Jira.
-12. **Histórico de Decisão**: Contexto e justificativa da solução escolhida frente às alternativas.
-13. **ADR Sugerida / Homologada**: Título, status e sumário do Architecture Decision Record registrado.
-14. **Checklist de Conclusão**: Lista de verificação do Tríplice Registro e esteira CI/CD.
-15. **Melhorias Futuras**: Oportunidades técnicas e ideias catalogadas no backlog para iterações futuras.
+Para manter a máxima eficiência da janela de contexto da LLM e simultaneamente a rastreabilidade enterprise completa:
+1. **No Chat com o Usuário**: Resposta ultra-concisa com bullet points objetivos e links diretos clicáveis para Jira, Confluence e Git (`• Fez isso ([Jira](link) · [Git](link))`). Proibido despejar blocos longos de texto no chat.
+2. **Nos Registros Externos (Jira / Confluence / PR)**: O relatório técnico denso de **15 Seções Canônicas** (Resumo Executivo, Diagnóstico, Riscos, Impacto, Plano de Ação, Implementação, Testes, Segurança, Documentação, Métricas, Próximos Passos, Histórico de Decisão, ADR Homologada, Checklist e Melhorias Futuras) é gravado na íntegra nos cards do Jira, nas páginas do Confluence e nas descrições de Pull Request.

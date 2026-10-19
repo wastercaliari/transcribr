@@ -67,3 +67,11 @@ A partir de agora, **TODA e QUALQUER** alteração de código, nova funcionalida
 - **Exposição Canônica de Métricas**: O servidor interno expõe o endpoint `/metrics` em estrita conformidade com a especificação Prometheus 0.0.4, contemplando tempos de CPU, memória heap/RSS, sessões ativas, falas (posted, discarded, duplicate), latência média STT e registros no SQLite.
 - **Provisionamento de Dashboards e Alertas**: A stack Prometheus e Grafana é provisionada como código (`docker-compose.monitoring.yml`, `monitoring/prometheus/alert_rules.yml`, `monitoring/grafana/dashboards/transcribr_overview.json`).
 - **Scanner Inteligente de Incidentes**: O agente e scripts operacionais (`scripts/observability_scanner.js`) conectam-se ativamente às plataformas, diagnosticando pressões de memória, indisponibilidade de motores STT ou anomalias no áudio, aplicando remediações automáticas (purga de buffer SQLite, coleta de lixo e notificação no Jira).
+
+---
+
+### 6. Protocolo de Resposta em Duas Camadas & Economia de Contexto
+- **Externalização Densa Obrigatória**: Toda análise profunda, diagnósticos técnicos, matrizes e relatórios de engenharia (15 seções canônicas) DEVEM ser gravados diretamente nas plataformas integradas (comentário de conclusão no Jira, ADRs no Confluence e descrição de Pull Requests no GitHub).
+- **Saída Compacta no Chat da LLM**: As respostas na janela de chat com o usuário DEVEM ser estritamente curtas e em tópicos diretos, citando o que foi realizado acompanhado dos links clicáveis para onde cada registro foi externalizado:
+  - Exemplo: `• Fez isso ([Jira TICKET-XX](url) · [Commit abc](url))`
+- **Preservação de Context Window**: É terminantemente proibido despejar blocos longos de texto analítico ou relatórios de 15 seções na janela de contexto do chat, garantindo longevidade da sessão e foco em tomada de decisão.
