@@ -60,3 +60,10 @@ A partir de agora, **TODA e QUALQUER** alteração de código, nova funcionalida
   2. *Aplicação da Solução Segura*: Aprender a recomendação oficial do scanner de segurança e aplicar o fix estrutural definitivo (ex.: sanitização recursiva contra reintrodução de caracteres/tags em CWE-116/CWE-20).
   3. *Testes de Regressão*: Adicionar casos de teste unitário cobrindo o vetor de ataque específico.
   4. *Ciclo Git-Jira-Confluence*: Criar card no Jira com transição para 'Em andamento', branch dedicada `fix/<TICKET>-<desc>`, Pull Request formal no GitHub, aprovação de 100% dos checks de CI e merge em `main`.
+
+---
+
+### 5. Observabilidade Ativa, Prometheus, Grafana & Auto-Remediação
+- **Exposição Canônica de Métricas**: O servidor interno expõe o endpoint `/metrics` em estrita conformidade com a especificação Prometheus 0.0.4, contemplando tempos de CPU, memória heap/RSS, sessões ativas, falas (posted, discarded, duplicate), latência média STT e registros no SQLite.
+- **Provisionamento de Dashboards e Alertas**: A stack Prometheus e Grafana é provisionada como código (`docker-compose.monitoring.yml`, `monitoring/prometheus/alert_rules.yml`, `monitoring/grafana/dashboards/transcribr_overview.json`).
+- **Scanner Inteligente de Incidentes**: O agente e scripts operacionais (`scripts/observability_scanner.js`) conectam-se ativamente às plataformas, diagnosticando pressões de memória, indisponibilidade de motores STT ou anomalias no áudio, aplicando remediações automáticas (purga de buffer SQLite, coleta de lixo e notificação no Jira).
