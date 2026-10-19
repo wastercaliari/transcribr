@@ -56,7 +56,7 @@ const {
     clearAudioSession,
     getAudioSessionStats
 } = require('./src/audio_recorder.js');
-const { speechStorage } = require('./src/speech_storage.js');
+const { speechStorage, aggregateUtterancesIntoBlocks } = require('./src/speech_storage.js');
 const { generatePrometheusMetrics, recordHttpRequest } = require('./src/metrics.js');
 const { VoiceDiarizer } = require('./src/voice_diarization.js');
 const { renderDashboardHtml } = require('./src/web_dashboard.js');
@@ -1255,6 +1255,26 @@ function buildSummaryPrompt(entries, totalSeconds, options = {}) {
     const targetLanguage = normalizeTargetLanguage(options.targetLanguage || 'pt');
     const langInstructions = getLanguageInstructions(targetLanguage);
 
+    const blockData = aggregateUtterancesIntoBlocks(entries, 50);
+    const rankingFactual = blockData.overallStats.map(s => {
+        const p1 = fmtShort(s.firstTime);
+        const p2 = fmtShort(s.lastTime);
+        return `• **${s.author}**: ${s.count} falas (${s.percentage}%) [ativo de ${p1} até ${p2}]`;
+    }).join('\n') || '• Nenhum participante registrado';
+
+    const cronologiaBlocos = blockData.blocks.map(b => {
+        const bStart = fmtTime(b.startTime);
+        const bEnd = fmtTime(b.endTime);
+        const durMin = Math.round(b.durationSeconds / 60) || 1;
+        const partDesc = b.speakerStats.map(s => `${s.author}: ${s.count} (${s.percentage}%)`).join(', ');
+        const firstPreview = b.firstUtterance ? `"[${fmtShort(b.firstUtterance.t)}] ${b.firstUtterance.a}: ${b.firstUtterance.x.slice(0, 70)}"` : '';
+        const lastPreview = b.lastUtterance ? `"[${fmtShort(b.lastUtterance.t)}] ${b.lastUtterance.a}: ${b.lastUtterance.x.slice(0, 70)}"` : '';
+        return `📦 **Bloco #${b.blockIndex}** [${b.utteranceCount} falas] (de ${bStart} até ${bEnd} — ~${durMin} min):
+   - Participação no Bloco: ${partDesc}
+   - Primeira fala: ${firstPreview}
+   - Última fala: ${lastPreview}`;
+    }).join('\n\n') || '• Nenhum bloco formado';
+
     const prompt =
 `Você é um assistente sênior especialista em síntese de reuniões, alinhamentos e conversas em equipe.
 Abaixo está a transcrição cronológica das falas de voz de uma chamada no Discord com timestamps reais.
@@ -1264,8 +1284,15 @@ Abaixo está a transcrição cronológica das falas de voz de uma chamada no Dis
 • Horário da Primeira Fala Registrada: ${firstSpokenStr}
 • Horário da Última Fala Registrada: ${lastSpokenStr}
 • Total de Falas Analisadas: ${sampledCount} de ${totalCount} falas gravadas
+• Total de Blocos de 50 Falas: ${blockData.blocks.length} bloco(s)
 • Participantes Ativos: ${speakersStr}
 • Idioma Alvo da Ata: ${targetLanguage.toUpperCase()}
+
+📊 RANKING REAL DE PARTICIPAÇÃO (NÃO ALUCINAR QUANTIDADES OU NOMES):
+${rankingFactual}
+
+📦 CRONOLOGIA FACTUAL DOS BLOCOS DE 50 FALAS:
+${cronologiaBlocos}
 
 SUA MISSÃO:
 Gere uma ATA / RESUMO COMPLETO, DETALHADO, ESTRUTURADO E FIEL AO CONTEÚDO REAL.
@@ -1292,8 +1319,11 @@ ESTRUTURA OBRIGATÓRIA DA ATA:
 6. ✅ **Decisões, Combinados e Próximos Passos**:
    - Registre com clareza o que ficou acordado, tarefas definidas e quem é o responsável por cada entrega.
 
-DIRETRIZES DE FIDELIDADE:
+DIRETRIZES DE FIDELIDADE E BLOCOS DE 50 FALAS:
 - Seja FACTUAL e FIEL à transcrição. Não invente acontecimentos que não foram falados.
+- Use OBRIGATORIAMENTE os dados da "CRONOLOGIA FACTUAL DOS BLOCOS" acima para estruturar a seção "⏱️ Linha do Tempo / Cronologia dos Assuntos".
+- NUNCA invente horários fora dos intervalos registrados nos blocos.
+- NUNCA atribua tópicos ou falas a quem não estava ativo no bloco correspondente.
 - Se a transcrição contiver gírias, expressões coloquiais ou termos técnicos, interprete o sentido real no contexto da conversa.
 - NUNCA use tabelas Markdown com barras verticais ("|"). Use exclusivamente tópicos verticais ("•"), subtítulos e negrito.
 
@@ -1311,7 +1341,8 @@ ${transcriptText}`;
         isSampled,
         transcriptLines,
         speakers: uniqueSpeakers,
-        targetLanguage
+        targetLanguage,
+        blockData
     };
 }
 
@@ -1777,6 +1808,7 @@ module.exports = {
     getAudioSessionStats,
     handleAudio,
     speechStorage,
+    aggregateUtterancesIntoBlocks,
     logLine,
     readLog,
     pruneLog,

@@ -28,6 +28,8 @@ class SpeechStorage {
         this.fallbackLogPath = options.fallbackLogPath || DEFAULT_LOG_PATH;
         this.isMemory = this.dbPath === ':memory:';
         this.closed = false;
+        this.pendingUtterances = new Map();
+        this.memoryBlocks = [];
 
         if (DatabaseSync && !options.forceFallback) {
             this.engine = 'sqlite';
@@ -76,6 +78,18 @@ class SpeechStorage {
                 timestamp INTEGER NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_speech_guild_time ON speech_entries(guild_id, timestamp);
+
+            CREATE TABLE IF NOT EXISTS speech_blocks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id TEXT NOT NULL,
+                block_index INTEGER NOT NULL,
+                start_time INTEGER NOT NULL,
+                end_time INTEGER NOT NULL,
+                utterance_count INTEGER NOT NULL,
+                speaker_stats TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_speech_blocks_guild ON speech_blocks(guild_id, start_time);
         `);
 
         this.insertStmt = this.db.prepare(
@@ -95,6 +109,19 @@ class SpeechStorage {
         );
         this.countGuildStmt = this.db.prepare(
             'SELECT COUNT(*) AS total FROM speech_entries WHERE guild_id = ?'
+        );
+
+        this.insertBlockStmt = this.db.prepare(
+            'INSERT INTO speech_blocks (guild_id, block_index, start_time, end_time, utterance_count, speaker_stats, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        );
+        this.selectBlocksStmt = this.db.prepare(
+            'SELECT guild_id AS g, block_index AS bi, start_time AS st, end_time AS et, utterance_count AS uc, speaker_stats AS ss, created_at AS ca FROM speech_blocks WHERE guild_id = ? AND start_time >= ? ORDER BY block_index ASC'
+        );
+        this.clearGuildBlocksStmt = this.db.prepare(
+            'DELETE FROM speech_blocks WHERE guild_id = ?'
+        );
+        this.countGuildBlocksStmt = this.db.prepare(
+            'SELECT COUNT(*) AS total FROM speech_blocks WHERE guild_id = ?'
         );
     }
 
@@ -119,10 +146,11 @@ class SpeechStorage {
         const x = String(text);
         const t = Number(timestamp);
 
+        let inserted = false;
         if (this.engine === 'sqlite') {
             try {
                 this.insertStmt.run(g, a, x, t);
-                return true;
+                inserted = true;
             } catch (err) {
                 console.error('❌ [SpeechStorage] Erro ao inserir fala no SQLite:', err.message);
                 return false;
@@ -130,15 +158,31 @@ class SpeechStorage {
         } else {
             if (this.isMemory) {
                 this.memoryEntries.push({ t, g, a, x });
+                inserted = true;
             } else {
                 try {
                     fs.appendFileSync(this.fallbackLogPath, JSON.stringify({ t, g, a, x }) + '\n', 'utf8');
+                    inserted = true;
                 } catch {
                     return false;
                 }
             }
-            return true;
         }
+
+        if (inserted) {
+            let pending = this.pendingUtterances.get(g);
+            if (!pending) {
+                pending = [];
+                this.pendingUtterances.set(g, pending);
+            }
+            pending.push({ t, g, a, x });
+            if (pending.length >= 50) {
+                const blockSlice = pending.splice(0, 50);
+                this.saveBlock(g, blockSlice);
+            }
+        }
+
+        return inserted;
     }
 
     /**
@@ -258,14 +302,121 @@ class SpeechStorage {
     }
 
     /**
+     * Persiste um bloco agregado de falas (por padrão fatias de 50)
+     */
+    saveBlock(guildId, utterances) {
+        if (!guildId || !utterances || !utterances.length || this.closed) return null;
+        const g = String(guildId);
+        const sorted = [...utterances].sort((a, b) => a.t - b.t);
+        const startTime = sorted[0].t;
+        const endTime = sorted[sorted.length - 1].t;
+        const utteranceCount = sorted.length;
+
+        const counts = {};
+        for (const item of sorted) {
+            const author = item.a || 'Desconhecido';
+            counts[author] = (counts[author] || 0) + 1;
+        }
+        const speakerStats = Object.entries(counts).map(([author, count]) => ({
+            author,
+            count,
+            percentage: Number(((count / utteranceCount) * 100).toFixed(1))
+        })).sort((a, b) => b.count - a.count);
+
+        const now = Date.now();
+        const blockIndex = this.getBlockCount(g) + 1;
+
+        if (this.engine === 'sqlite') {
+            try {
+                this.insertBlockStmt.run(g, blockIndex, startTime, endTime, utteranceCount, JSON.stringify(speakerStats), now);
+            } catch (err) {
+                console.error('❌ [SpeechStorage] Erro ao inserir bloco de falas no SQLite:', err.message);
+                return null;
+            }
+        } else {
+            if (!this.memoryBlocks) this.memoryBlocks = [];
+            this.memoryBlocks.push({
+                g,
+                blockIndex,
+                startTime,
+                endTime,
+                utteranceCount,
+                speakerStats,
+                createdAt: now
+            });
+        }
+
+        return {
+            guildId: g,
+            blockIndex,
+            startTime,
+            endTime,
+            utteranceCount,
+            speakerStats,
+            firstUtterance: sorted[0],
+            lastUtterance: sorted[sorted.length - 1]
+        };
+    }
+
+    /**
+     * Retorna a quantidade de blocos gravados para uma guild
+     */
+    getBlockCount(guildId) {
+        if (!guildId || this.closed) return 0;
+        const g = String(guildId);
+        if (this.engine === 'sqlite') {
+            try {
+                const row = this.countGuildBlocksStmt.get(g);
+                return row ? Number(row.total) : 0;
+            } catch {
+                return 0;
+            }
+        } else {
+            return (this.memoryBlocks || []).filter(b => b.g === g).length;
+        }
+    }
+
+    /**
+     * Retorna os blocos agregados de uma guild a partir de um timestamp
+     */
+    getBlocks(guildId, sinceMs = 0) {
+        if (!guildId || this.closed) return [];
+        const g = String(guildId);
+        const since = Number(sinceMs) || 0;
+        if (this.engine === 'sqlite') {
+            try {
+                const rows = this.selectBlocksStmt.all(g, since);
+                return rows.map(r => ({
+                    guildId: r.g,
+                    blockIndex: Number(r.bi),
+                    startTime: Number(r.st),
+                    endTime: Number(r.et),
+                    utteranceCount: Number(r.uc),
+                    speakerStats: JSON.parse(r.ss || '[]'),
+                    createdAt: Number(r.ca)
+                }));
+            } catch (err) {
+                console.error('❌ [SpeechStorage] Erro ao buscar blocos de falas no SQLite:', err.message);
+                return [];
+            }
+        } else {
+            return (this.memoryBlocks || [])
+                .filter(b => b.g === g && b.startTime >= since)
+                .map(b => ({ ...b }));
+        }
+    }
+
+    /**
      * Limpa o histórico de falas de uma guild específica (usado por /limpar)
      */
     clearGuild(guildId) {
         if (!guildId || this.closed) return 0;
         const g = String(guildId);
+        this.pendingUtterances.delete(g);
 
         if (this.engine === 'sqlite') {
             try {
+                this.clearGuildBlocksStmt.run(g);
                 const info = this.clearGuildStmt.run(g);
                 return info.changes;
             } catch (err) {
@@ -273,6 +424,7 @@ class SpeechStorage {
                 return 0;
             }
         } else {
+            this.memoryBlocks = (this.memoryBlocks || []).filter(b => b.g !== g);
             if (this.isMemory) {
                 const initialLen = this.memoryEntries.length;
                 this.memoryEntries = this.memoryEntries.filter(e => e.g !== g);
@@ -411,10 +563,127 @@ const defaultSpeechStorage = new SpeechStorage({
     autoImportJsonl: process.env.NODE_ENV !== 'test'
 });
 
+/**
+ * Agrupa uma lista cronológica de falas em blocos de tamanho fixo (padrão 50 falas)
+ * com cálculo de estatísticas matemáticas exatas de participação por autor e timestamps.
+ *
+ * @param {Array<{t: number, g: string, a: string, x: string}>} entries
+ * @param {number} [blockSize=50]
+ * @returns {{
+ *   blocks: Array<{
+ *     blockIndex: number,
+ *     startTime: number,
+ *     endTime: number,
+ *     durationSeconds: number,
+ *     utteranceCount: number,
+ *     speakerCounts: Record<string, number>,
+ *     speakerStats: Array<{ author: string, count: number, percentage: number }>,
+ *     firstUtterance: { t: number, a: string, x: string },
+ *     lastUtterance: { t: number, a: string, x: string },
+ *     entries: Array<{t: number, g: string, a: string, x: string}>
+ *   }>,
+ *   overallStats: Array<{ author: string, count: number, percentage: number, firstTime: number, lastTime: number }>,
+ *   totalUtterances: number,
+ *   startTime: number,
+ *   endTime: number,
+ *   totalDurationSeconds: number
+ * }}
+ */
+function aggregateUtterancesIntoBlocks(entries, blockSize = 50) {
+    if (!Array.isArray(entries) || entries.length === 0) {
+        return {
+            blocks: [],
+            overallStats: [],
+            totalUtterances: 0,
+            startTime: 0,
+            endTime: 0,
+            totalDurationSeconds: 0
+        };
+    }
+
+    const size = Math.max(1, Number(blockSize) || 50);
+    const totalUtterances = entries.length;
+    const sorted = [...entries].sort((a, b) => a.t - b.t);
+    const startTime = sorted[0].t;
+    const endTime = sorted[sorted.length - 1].t;
+    const totalDurationSeconds = Math.max(0, Math.round((endTime - startTime) / 1000));
+
+    // Estatísticas globais consolidadas
+    const globalCounts = new Map();
+    const globalFirstTime = new Map();
+    const globalLastTime = new Map();
+
+    for (const e of sorted) {
+        const author = e.a || 'Desconhecido';
+        globalCounts.set(author, (globalCounts.get(author) || 0) + 1);
+        if (!globalFirstTime.has(author)) globalFirstTime.set(author, e.t);
+        globalLastTime.set(author, e.t);
+    }
+
+    const overallStats = Array.from(globalCounts.entries())
+        .map(([author, count]) => ({
+            author,
+            count,
+            percentage: Number(((count / totalUtterances) * 100).toFixed(1)),
+            firstTime: globalFirstTime.get(author),
+            lastTime: globalLastTime.get(author)
+        }))
+        .sort((a, b) => b.count - a.count);
+
+    // Divisão em blocos de até blockSize falas
+    const blocks = [];
+    let blockIndex = 1;
+
+    for (let i = 0; i < sorted.length; i += size) {
+        const slice = sorted.slice(i, i + size);
+        const bStart = slice[0].t;
+        const bEnd = slice[slice.length - 1].t;
+        const bDuration = Math.max(0, Math.round((bEnd - bStart) / 1000));
+
+        const counts = {};
+        for (const item of slice) {
+            const author = item.a || 'Desconhecido';
+            counts[author] = (counts[author] || 0) + 1;
+        }
+
+        const stats = Object.entries(counts)
+            .map(([author, count]) => ({
+                author,
+                count,
+                percentage: Number(((count / slice.length) * 100).toFixed(1))
+            }))
+            .sort((a, b) => b.count - a.count);
+
+        blocks.push({
+            blockIndex,
+            startTime: bStart,
+            endTime: bEnd,
+            durationSeconds: bDuration,
+            utteranceCount: slice.length,
+            speakerCounts: counts,
+            speakerStats: stats,
+            firstUtterance: slice[0],
+            lastUtterance: slice[slice.length - 1],
+            entries: slice
+        });
+        blockIndex++;
+    }
+
+    return {
+        blocks,
+        overallStats,
+        totalUtterances,
+        startTime,
+        endTime,
+        totalDurationSeconds
+    };
+}
+
 module.exports = {
     SpeechStorage,
     speechStorage: defaultSpeechStorage,
     DEFAULT_RETENTION_MS,
     DEFAULT_DB_PATH,
-    isSqliteSupported: !!DatabaseSync
+    isSqliteSupported: !!DatabaseSync,
+    aggregateUtterancesIntoBlocks
 };
