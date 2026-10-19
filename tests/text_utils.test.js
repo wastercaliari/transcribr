@@ -1,7 +1,6 @@
-// Testes unitários para utilitários de texto, sanitização de Markdown e formatação
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
-const { formatDiscordMarkdown, formatTimeWindow, splitMessage, isSuspicious } = require('../bot.js');
+const { formatDiscordMarkdown, formatTimeWindow, splitMessage, isSuspicious, stripHtmlTags } = require('../bot.js');
 
 describe('Text & Markdown Utilities', () => {
     describe('formatTimeWindow', () => {
@@ -90,6 +89,29 @@ describe('Text & Markdown Utilities', () => {
 
         it('deve aprovar falas normais e técnicas', () => {
             assert.strictEqual(isSuspicious('Precisamos atualizar a rotação de logs no Railway hoje', 3.0), null);
+        });
+    });
+
+    describe('stripHtmlTags (CodeQL Alert #1 / CWE-116)', () => {
+        it('deve remover tags HTML simples preservando o conteúdo textual', () => {
+            assert.strictEqual(stripHtmlTags('<b>Olá</b> <i>Mundo</i>!'), 'Olá Mundo!');
+            assert.strictEqual(stripHtmlTags('<script>alert("teste")</script>Fala normal'), 'alert("teste")Fala normal');
+        });
+
+        it('deve remover recursivamente tags HTML aninhadas (defesa contra bypass de sanitização única)', () => {
+            // Vetor clássico de ataque CWE-116: tag embutida dentro de outra tag
+            assert.strictEqual(stripHtmlTags('<<script>alert(1)</script>'), 'alert(1)');
+            assert.strictEqual(stripHtmlTags('<<<script>>>'), '');
+            const nested = stripHtmlTags('<<script>script>alert(1)</script>');
+            assert.ok(!nested.includes('<'), 'Não deve conter nenhum caractere <');
+            assert.ok(!nested.includes('>'), 'Não deve conter nenhum caractere >');
+        });
+
+        it('deve tratar entradas vazias, nulas ou não-string com segurança', () => {
+            assert.strictEqual(stripHtmlTags(''), '');
+            assert.strictEqual(stripHtmlTags(null), '');
+            assert.strictEqual(stripHtmlTags(undefined), '');
+            assert.strictEqual(stripHtmlTags(12345), '');
         });
     });
 });

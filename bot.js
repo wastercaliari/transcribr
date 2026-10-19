@@ -232,6 +232,20 @@ const IGNORED_WORDS = new Set([
 ]);
 const WHISPER_HALLUCINATIONS = /legendas? (pela|por|de) |amara\.org|obrigado por assistir|inscreva-se|se inscreva|deixe seu like|tradu[çc][ãa]o:|subtitles? by|thanks for watching|www\.|\.com/i;
 
+/**
+ * Remove recursivamente todas as tags HTML e caracteres delimitadores impedindo injeção de tags ou reintrodução aninhada (CWE-116 / CodeQL Alert #1).
+ */
+function stripHtmlTags(input) {
+    if (!input || typeof input !== 'string') return '';
+    let prev;
+    let sanitized = input;
+    do {
+        prev = sanitized;
+        sanitized = sanitized.replace(/<[^>]*>/g, '');
+    } while (sanitized !== prev);
+    return sanitized.replace(/[<>]/g, '');
+}
+
 function applyCorrections(text) {
     try {
         const file = path.join(__dirname, 'corrections.json');
@@ -477,7 +491,7 @@ function startListening(guild, session) {
                     recordTranscriptionMetric({ durationSec: seconds, latencyMs, discarded: true });
                     return;
                 }
-                const text = applyCorrections(raw.replace(/<[^>]+>/g, '').trim());
+                const text = applyCorrections(stripHtmlTags(raw).trim());
                 if (!text) {
                     recordTranscriptionMetric({ durationSec: seconds, latencyMs, discarded: true });
                     return;
@@ -1450,6 +1464,7 @@ module.exports = {
     speechStorage,
     logLine,
     readLog,
-    pruneLog
+    pruneLog,
+    stripHtmlTags
 };
 
