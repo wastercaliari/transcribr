@@ -32,3 +32,4 @@
 2026-10-18 [DONE] @src/metrics.js @bot.js @docker-compose.monitoring.yml Implementacao de Observabilidade Ativa com Prometheus (/metrics), Grafana Provisioning (IaC) e Scanner Autonomo com Auto-Remediacao (SCRUM-64)
 2026-10-18 [RULE] @RULES.md Instituicao da Regra 13 de Observabilidade Ativa e Auto-Remediacao Continua com Prometheus, Grafana e Scanner de Incidentes | why: deteccao e cura proativa de anomalias operacionais
 2026-10-18 [DONE] @Atlassian @GitHub Concessao de acessos e inclusao de colaborador Guilherme Trevizani (guilhermetrevz@outlook.com / GitHub: gtrevizani) no GitHub, Jira e Confluence (SCRUM-65)
+2026-10-18 [DONE] @Atlassian Elevacao de Guilherme Trevizani para Administrador/Dono no Jira (Role Administrator + jira-admins) e Confluence (Role Administrador do espaco TBR + confluence-admins) (SCRUM-66)
