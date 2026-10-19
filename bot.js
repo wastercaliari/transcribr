@@ -62,6 +62,7 @@ const { VoiceDiarizer } = require('./src/voice_diarization.js');
 const { renderDashboardHtml } = require('./src/web_dashboard.js');
 const { normalizeTargetLanguage, getLanguageInstructions } = require('./src/multilingual_translation.js');
 const { createJiraIssue, extractActionItemsFromAta } = require('./src/jira_integration.js');
+const { dispatchAtaToCorporateChannels, formatSlackAtaPayload, formatTeamsAtaPayload } = require('./src/corporate_webhooks.js');
 
 const guildDiarizers = new Map();
 function getGuildDiarizer(guildId) {
@@ -1379,6 +1380,7 @@ async function generateAndSendResumo(i, totalSeconds, options = {}) {
 
         // Sincronização automática com o Confluence (SCRUM-45 / I-2)
         let confluenceAviso = '';
+        let confluenceUrl = '';
         try {
             const meetingTitle = `Ata Técnica - ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/:/g, 'h')} (${formatTimeWindow(totalSeconds)})`;
             const confResult = await syncAtaToConfluence({
@@ -1389,13 +1391,35 @@ async function generateAndSendResumo(i, totalSeconds, options = {}) {
                 model: result.model
             });
             if (confResult.success) {
+                confluenceUrl = confResult.url;
                 confluenceAviso = `\n🌐 **Sincronizado no Confluence:** [Abrir Página](${confResult.url})`;
             }
         } catch (confErr) {
             console.warn('Confluence auto-sync ignorado/falhou:', confErr.message);
         }
 
-        await i.editReply(`📬 Resumo técnico e anexos (.md e áudio) enviados no seu privado.${audioAviso}${confluenceAviso}`);
+        // Transmissão Corporativa para Slack e Microsoft Teams (SCRUM-59 / I-15)
+        let webhooksAviso = '';
+        try {
+            const webhookResults = await dispatchAtaToCorporateChannels({
+                title: `Ata Técnica (${tempoDesc})`,
+                summaryMarkdown: rawSummary,
+                timeWindow: tempoDesc,
+                model: result.model,
+                speakers: Array.from(new Set(entries.map(e => e.author))),
+                confluenceUrl
+            });
+            const dispatched = [];
+            if (webhookResults.slack?.success) dispatched.push('Slack');
+            if (webhookResults.teams?.success) dispatched.push('Microsoft Teams');
+            if (dispatched.length > 0) {
+                webhooksAviso = `\n📢 **Transmitido para:** ${dispatched.join(', ')}`;
+            }
+        } catch (webhookErr) {
+            console.warn('Transmissão para webhooks corporativos ignorada/falhou:', webhookErr.message);
+        }
+
+        await i.editReply(`📬 Resumo técnico e anexos (.md e áudio) enviados no seu privado.${audioAviso}${confluenceAviso}${webhooksAviso}`);
     } catch {
         await i.editReply('❌ Não consegui te enviar mensagem privada. Habilite DMs de membros do servidor (Configurações de privacidade) e tente de novo.');
     }
@@ -1745,6 +1769,9 @@ module.exports = {
     getLanguageInstructions,
     createJiraIssue,
     extractActionItemsFromAta,
-    handleJira
+    handleJira,
+    dispatchAtaToCorporateChannels,
+    formatSlackAtaPayload,
+    formatTeamsAtaPayload
 };
 
