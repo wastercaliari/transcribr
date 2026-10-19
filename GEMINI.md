@@ -1,4 +1,4 @@
-Antes de qualquer tarefa, leia o RULES.md inteiro e siga-o.
+Antes de qualquer tarefa, leia o RULES.md e o AGENTE_UNIVERSAL_ENGENHARIA_DEVSECOPS.md inteiros e siga-os rigorosamente.
 
 # Diretrizes de Governança e Documentação Contínua: TranscriBR
 
