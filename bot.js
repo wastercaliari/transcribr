@@ -58,6 +58,17 @@ const {
 } = require('./src/audio_recorder.js');
 const { speechStorage } = require('./src/speech_storage.js');
 const { generatePrometheusMetrics, recordHttpRequest } = require('./src/metrics.js');
+const { VoiceDiarizer } = require('./src/voice_diarization.js');
+
+const guildDiarizers = new Map();
+function getGuildDiarizer(guildId) {
+    let d = guildDiarizers.get(guildId);
+    if (!d) {
+        d = new VoiceDiarizer();
+        guildDiarizers.set(guildId, d);
+    }
+    return d;
+}
 
 const DISCORD_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -482,6 +493,17 @@ function startListening(guild, session) {
 
             const names = humansIn(voiceChannel).map(x => x.displayName);
             const seconds = (pcm.length / 32000).toFixed(1);
+
+            const diarizer = getGuildDiarizer(guild.id);
+            if (userName && userName !== 'Alguém') {
+                diarizer.enrollSpeaker(userId, userName, pcm);
+            } else {
+                const idResult = diarizer.identifySpeaker(pcm);
+                if (idResult.match && idResult.speakerName) {
+                    userName = idResult.speakerName;
+                }
+            }
+
             console.log(`🎙️ [${userName}] ${seconds}s RMS=${Math.round(rms)}`);
             try {
                 const t0 = Date.now();
@@ -1609,6 +1631,8 @@ module.exports = {
     recordHttpRequest,
     sampleTranscriptLines,
     buildSummaryPrompt,
-    stylePrompt
+    stylePrompt,
+    getGuildDiarizer,
+    VoiceDiarizer
 };
 
