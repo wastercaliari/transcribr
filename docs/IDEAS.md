@@ -6,7 +6,8 @@ Este documento registra hipóteses de inovação técnica, otimizações arquite
 
 ## 🚀 Categoria A: Auto-Evolução Reflexiva do Agent Master (`agent-master-devsecops`)
 
-- I-1: **Expositor MCP (Model Context Protocol)**: Criar servidor MCP nativo para que IDEs modernas (Cursor, Claude Desktop, Antigravity) consumam as ferramentas e agentes diretamente via protocolo padronizado MCP.
+- I-1: **Servidor MCP Nativo (Model Context Protocol)**: [EM IMPLEMENTAÇÃO / ARQUITETADO] Servidor MCP nativo e agnóstico para que qualquer LLM, IDE (Cursor, Claude, Antigravity) e harness consuma ferramentas de governança, auditoria, scanners DevSecOps e o modo Full-Dev.
+- I-11: **Modo Full Developer Autônomo com Encadeamento de Ideias em Loop**: [HOMOLOGADO / ESPECIFICADO] Motor de execução contínua opcional que estuda e implementa ideias sequencialmente com testes, revisão cética e Tríplice Registro sem necessidade de novos prompts manuais.
 - I-2: **Harness Automatizado de Auto-Avaliação (LLM Evaluation Harness)**: Suíte automatizada de testes para avaliar empiricamente a taxa de aderência de qualquer modelo de IA (Claude, GPT, Gemini, DeepSeek, Llama) às 13 regras e às 15 seções.
 - I-3: **CLI de Inicialização Rápida (`npx agent-master-init`)**: Script interativo de linha de comando para clonar e configurar os arquivos de agentes na raiz de qualquer novo projeto em segundos.
 - I-4: **Gerador de Plugins Nativos para VS Code & JetBrains**: Extensão leve para injetar os prompts e atalhos de modos (`modo: devsecops`, `modo: revisor`, `modo: melhoria`, `modo: observabilidade`) diretamente no ambiente de desenvolvimento.

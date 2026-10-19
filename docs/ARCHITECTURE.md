@@ -16,6 +16,7 @@ graph TD
     Master -->|modo: revisor| Reviewer["🔍 Agente Revisor Crítico Adversário"]
     Master -->|modo: melhoria| Improvement["📈 Agente de Melhoria Contínua & Ideias"]
     Master -->|modo: observabilidade| SRE["📡 Agente SRE & Observabilidade"]
+    Master -->|modo: full-dev (Opcional)| FullDev["⚡ Modo Full Developer (Auto-Loop Contínuo de Ideias)"]
     
     DevSecOps -->|Entrega Código / PR| Reviewer
     Reviewer -->|Reprovado: Aponta Falhas/Testes| DevSecOps
@@ -105,6 +106,16 @@ Cada agente opera dentro de um ou mais loops contínuos:
    → testar portabilidade cruzada entre LLMs
    → gerar novas ideias de ferramentas em docs/IDEAS.md
    → auditar e refinar os próprios contratos operacionais
+
+7. LOOP FULL DEVELOPER (Modo Opcional de Execução Contínua):
+   → selecionar próxima ideia validada do backlog contextual (Regra 14)
+   → estudar viabilidade, dependências e impacto arquitetural
+   → planejar implementação com testes de regressão
+   → codificar em branch dedicada (DevSecOps)
+   → submeter a auditoria cega (Revisor Independente)
+   → validar esteira CI/CD e scanner de segurança
+   → efetuar Tríplice Registro (Git commit/PR, Jira Task, Confluence ADR)
+   → encadear automaticamente para a próxima ideia sem interrupção do usuário
 ```
 
 ---
