@@ -35,3 +35,4 @@
 2026-10-18 [DONE] @Atlassian Elevacao de Guilherme Trevizani para Administrador/Dono no Jira (Role Administrator + jira-admins) e Confluence (Role Administrador do espaco TBR + confluence-admins) (SCRUM-66)
 2026-10-18 [DONE] @scripts/export_agents_bundle.js Criacao de gerador de bundle universal e manifesto dist/UNIVERSAL_AGENTS_BUNDLE.md para portabilidade dos agentes entre qualquer LLM (SCRUM-67)
 2026-10-18 [DONE] @AGENTE_MESTRE_UNIVERSAL.md Criacao de arquivo unico consolidado para compartilhamento plug-and-play de agentes com amigos (SCRUM-68)
+2026-10-18 [REFACTOR] @agents @docs Reestruturacao de diretorios em pastas dedicadas /agents e /docs com catalogos README e preservacao de CI/CD (SCRUM-69)

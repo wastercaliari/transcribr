@@ -1,4 +1,4 @@
-@RULES.md
+@docs/RULES.md
 
 # Padrão Obrigatório de Engenharia: Tríplice Registro Contínuo
 A cada passo concluído, execute OBRIGATORIAMENTE o registro nos 3 pilares:
