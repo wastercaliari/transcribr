@@ -1,8 +1,23 @@
-# IDEAS (open, best first, max 10)
-- I-10 [CODE] Persistência do buffer histórico de falas em SQLite ou Redis | evidence: bot.js:33 log de falas é resetado em reinício de container | value: histórico resistente a restarts | cost: M
-- I-11 [CODE] Diarização avançada e identificação de locutor por Voice Fingerprinting | evidence: bot.js:429 speaking.on agrupa por ID sem biometria acústica | value: precisão em sobreposição de vozes | cost: L
-- I-12 [USER] Dashboard Web corporativo em tempo real para monitoramento e telemetria | evidence: bot.js:1285 healthcheck HTTP apenas JSON bruto | value: interface gráfica para stakeholders | cost: M
-- I-13 [USER] Tradução simultânea e suporte multilíngue para atas globais (PT/EN/ES) | evidence: bot.js:800 prompt de resumo fixo em português | value: reuniões corporativas internacionais | cost: S
-- I-14 [USER] Criação automática de tarefas no Jira a partir de decisões faladas (/jira criar-tarefa) | evidence: bot.js:930 integração Confluence unidirecional | value: conversão de falas em ações no Jira | cost: M
-- I-15 [USER] Transmissão de atas técnicas para canais corporativos de Slack e Teams | evidence: bot.js:965 atas enviadas apenas em DM do Discord | value: integração multi-plataforma corporativa | cost: S
-- I-16 [RISK] Sistema de vigilância e alertas proativos por palavras-chave críticas de engenharia | evidence: bot.js:390 pipeline filtra ruídos mas não monitora palavras-chave de crise | value: resposta imediata a incidentes | cost: S
+# IDEAS (Backlog Conceitual, Oportunidades Arquiteturais & Auto-Evolução do Agent)
+
+Este documento registra hipóteses de inovação técnica, otimizações arquiteturais e propostas de auto-evolução contínua da inteligência dos agentes, organizadas por potencial de valor:
+
+---
+
+## 🚀 Categoria A: Auto-Evolução Reflexiva do Agent Master (`agent-master-devsecops`)
+
+- I-1: **Expositor MCP (Model Context Protocol)**: Criar servidor MCP nativo para que IDEs modernas (Cursor, Claude Desktop, Antigravity) consumam as ferramentas e agentes diretamente via protocolo padronizado MCP.
+- I-2: **Harness Automatizado de Auto-Avaliação (LLM Evaluation Harness)**: Suíte automatizada de testes para avaliar empiricamente a taxa de aderência de qualquer modelo de IA (Claude, GPT, Gemini, DeepSeek, Llama) às 13 regras e às 15 seções.
+- I-3: **CLI de Inicialização Rápida (`npx agent-master-init`)**: Script interativo de linha de comando para clonar e configurar os arquivos de agentes na raiz de qualquer novo projeto em segundos.
+- I-4: **Gerador de Plugins Nativos para VS Code & JetBrains**: Extensão leve para injetar os prompts e atalhos de modos (`modo: devsecops`, `modo: revisor`, `modo: melhoria`, `modo: observabilidade`) diretamente no ambiente de desenvolvimento.
+- I-5: **Revisor Autônomo com Webhooks no GitHub Actions**: Agente rodando em contêiner de CI no GitHub Actions para emitir parecer técnico e testes de quebra automaticamente em novos Pull Requests usando a persona do Revisor Independente.
+- I-6: **Compactador Semântico de Contexto para Modelos Locais**: Algoritmo para destilar as instruções do agente mantendo 100% da autoridade normativa em menos de 1.500 tokens para execução em hardware modesto local (Ollama 8B/14B).
+- I-7: **Sincronizador Automático Git ↔ Atlassian via Actions**: Action dedicada no repositório do agent que anexa links remotos automaticamente aos tickets do Jira `AGDEV` a cada commit ou PR.
+
+---
+
+## 🛠️ Categoria B: Inovações de Aplicação & Engenharia Geral
+
+- I-8: **Tracer Distribuído com OpenTelemetry**: Adicionar tracing distribuído aos playbooks de SRE para visualização de flamegraphs de requisições lentas.
+- I-9: **Scanner de Regressão de Performance em CI**: Executar benchmarks comparativos de CPU/RAM em cada Pull Request, bloqueando merge se houver degradação superior a 10%.
+- I-10: **Circuit Breaker Inteligente Multi-Provedor**: Abstração resiliente para comutar automaticamente entre provedores de IA (Groq, OpenAI, Anthropic, Ollama) com base na latência e erros HTTP 429/5xx.
