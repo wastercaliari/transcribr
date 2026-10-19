@@ -184,6 +184,44 @@ class SpeechStorage {
     }
 
     /**
+     * Recupera as falas mais recentes globalmente ou de uma guild
+     * @param {number} [limit=50]
+     * @returns {Array<{t: number, g: string, a: string, x: string}>}
+     */
+    getRecentEntries(limit = 50) {
+        if (this.closed) return [];
+        const lim = Math.max(1, Math.min(Number(limit) || 50, 500));
+        if (this.engine === 'sqlite') {
+            try {
+                const rows = this.db.prepare(
+                    'SELECT guild_id AS g, author AS a, text AS x, timestamp AS t FROM speech_entries ORDER BY timestamp DESC LIMIT ?'
+                ).all(lim);
+                return rows.reverse().map(r => ({
+                    t: Number(r.t),
+                    g: String(r.g),
+                    a: String(r.a),
+                    x: String(r.x)
+                }));
+            } catch {
+                return [];
+            }
+        } else {
+            if (this.isMemory) {
+                return this.memoryEntries.slice(-lim);
+            }
+            try {
+                if (!fs.existsSync(this.fallbackLogPath)) return [];
+                const lines = fs.readFileSync(this.fallbackLogPath, 'utf8').trim().split('\n').filter(Boolean);
+                return lines.slice(-lim).map(l => {
+                    try { return JSON.parse(l); } catch { return null; }
+                }).filter(Boolean);
+            } catch {
+                return [];
+            }
+        }
+    }
+
+    /**
      * Remove registros antigos fora da janela de retenção
      */
     pruneLog(retentionMs = DEFAULT_RETENTION_MS) {
