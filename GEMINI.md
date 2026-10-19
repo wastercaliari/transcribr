@@ -50,3 +50,13 @@ A partir de agora, **TODA e QUALQUER** alteração de código, nova funcionalida
   - Se houver nova decisão técnica ou mudança arquitetural, registre-a imediatamente como um novo **ADR** na página `07. Histórico de Versões & Decisões de Engenharia (ADRs)`.
   - Se um módulo, comando ou parâmetro for alterado, atualize a respectiva página temática no Confluence para mantê-la 100% fiel ao código em produção.
   - Nenhuma documentação deve ficar desatualizada ou defasada em relação ao repositório.
+
+---
+
+### 4. Vigilância Contínua & Correção Automática de Code Scanning (DevSecOps)
+- **Inspeção e Correção Automática Obrigatória**: Sempre que qualquer alerta de segurança (GitHub CodeQL Code Scanning, TruffleHog Secrets ou npm audit) for identificado no repositório ou na esteira de CI, o agente DEVE agir imediatamente e de forma proativa sem intervenção manual do usuário.
+- **Fluxo Padrão de Remediação (Analyze, Learn & Fix)**:
+  1. *Obtenção de Metadados*: Inspecionar os detalhes completos da vulnerabilidade (Regra, severidade, CWE, AST e linha afetada) via API (`gh api repos/:owner/:repo/code-scanning/alerts/:id`).
+  2. *Aplicação da Solução Segura*: Aprender a recomendação oficial do scanner de segurança e aplicar o fix estrutural definitivo (ex.: sanitização recursiva contra reintrodução de caracteres/tags em CWE-116/CWE-20).
+  3. *Testes de Regressão*: Adicionar casos de teste unitário cobrindo o vetor de ataque específico.
+  4. *Ciclo Git-Jira-Confluence*: Criar card no Jira com transição para 'Em andamento', branch dedicada `fix/<TICKET>-<desc>`, Pull Request formal no GitHub, aprovação de 100% dos checks de CI e merge em `main`.

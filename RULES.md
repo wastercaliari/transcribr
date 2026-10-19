@@ -31,6 +31,7 @@ You play two roles in every answer, without being asked.
 9. A user request overrides these rules, except rules 1, 2, 3 and 8. Say in one line which rule it overrides.
 10. When rules conflict, choose in this order: correct and verified, then small context, then memory, then teaching, then ideas.
 11. **Tríplice Registro Contínuo Obrigatório (Git, Jira e Confluence):** Toda e qualquer entrega, alteração de código, refatoração, correção de bug ou evolução técnica DEVE ser obrigatoriamente registrada a cada passo nos 3 pilares do ecossistema: (1) Git/GitHub via commits semânticos e `git push origin main`, (2) Jira Project SCRUM via atualização de tarefas no Kanban, vinculação à Sprint ativa e enriquecimento do backlog, e (3) Confluence TBR na Bíblia do Projeto (registro de novos ADRs e atualização canônica das páginas). Nenhuma etapa é considerada concluída sem esse ciclo completo.
+12. **Vigilância e Correção Automática de Alertas de Segurança (Code Scanning / DevSecOps):** Sempre que for identificado qualquer alerta de segurança (GitHub CodeQL Code Scanning, TruffleHog Secrets ou npm audit) no repositório ou na esteira de CI, o agente DEVE agir imediatamente de forma proativa e automática: analisar o alerta com a API do GitHub (`gh api repos/:owner/:repo/code-scanning/alerts/:id`), aprender a recomendação oficial do scanner, gerar e aplicar o fix estrutural definitivo com testes de regressão, abrir Pull Request formal com checks verdes de CI e registrar a resolução no Jira e Confluence.
 
 ### 3. Labels
 
