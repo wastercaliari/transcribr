@@ -99,12 +99,23 @@ describe('Text & Markdown Utilities', () => {
         });
 
         it('deve remover recursivamente tags HTML aninhadas (defesa contra bypass de sanitização única)', () => {
-            // Vetor clássico de ataque CWE-116: tag embutida dentro de outra tag
+            // Vetores de ataque CWE-116: tags embutidas dentro de outras tags
             assert.strictEqual(stripHtmlTags('<<script>alert(1)</script>'), 'alert(1)');
+            assert.strictEqual(stripHtmlTags('<<script>script>alert(1)</script>'), 'alert(1)');
+            assert.strictEqual(stripHtmlTags('<scr<script>ipt>código malicioso</script>'), 'código malicioso');
             assert.strictEqual(stripHtmlTags('<<<script>>>'), '');
             const nested = stripHtmlTags('<<script>script>alert(1)</script>');
             assert.ok(!nested.includes('<'), 'Não deve conter nenhum caractere <');
             assert.ok(!nested.includes('>'), 'Não deve conter nenhum caractere >');
+        });
+
+        it('deve processar sequências massivas de "<" em tempo linear sem vulnerabilidade a ReDoS', () => {
+            const evil = '<'.repeat(50_000);
+            const start = Date.now();
+            const result = stripHtmlTags(evil);
+            const duration = Date.now() - start;
+            assert.strictEqual(result, '');
+            assert.ok(duration < 100, `Processamento demorou ${duration}ms, esperado < 100ms`);
         });
 
         it('deve tratar entradas vazias, nulas ou não-string com segurança', () => {

@@ -234,6 +234,7 @@ const WHISPER_HALLUCINATIONS = /legendas? (pela|por|de) |amara\.org|obrigado por
 
 /**
  * Remove recursivamente todas as tags HTML e caracteres delimitadores impedindo injeção de tags ou reintrodução aninhada (CWE-116 / CodeQL Alert #1).
+ * Utiliza [^<>] para garantir tempo linear O(N) e imunidade contra ReDoS polinomial em sequências repetidas de '<'.
  */
 function stripHtmlTags(input) {
     if (!input || typeof input !== 'string') return '';
@@ -241,7 +242,7 @@ function stripHtmlTags(input) {
     let sanitized = input;
     do {
         prev = sanitized;
-        sanitized = sanitized.replace(/<[^>]*>/g, '');
+        sanitized = sanitized.replace(/<[^<>]*>/g, '');
     } while (sanitized !== prev);
     return sanitized.replace(/[<>]/g, '');
 }
