@@ -270,16 +270,15 @@ function isSuspicious(text, seconds) {
     return null;
 }
 
-// Interpreta a resposta de um Whisper: descarta segmentos suspeitos e devolve { text, conf, nsp }
-//  conf = média do avg_logprob dos segmentos mantidos (quanto mais perto de 0, mais confiante)
-//  nsp  = maior no_speech_prob entre os segmentos mantidos
+// Interpreta a resposta de um Whisper: descarta segmentos com alta probabilidade de não-fala ou compressão anômala
+// Limiar de avg_logprob calibrado para -1.5 (evita cortar palavras legítimas em português)
 function parseWhisper(data, seconds) {
     const segs = Array.isArray(data.segments) ? data.segments : [];
     let text, conf = null, nsp = 0;
     if (segs.length) {
         const kept = segs.filter(sg => {
-            const bad = sg.no_speech_prob > 0.6 || sg.avg_logprob < -1.0 || sg.compression_ratio > 2.4;
-            if (bad) console.log(`🛑 Segmento descartado: "${(sg.text || '').trim()}"`);
+            const bad = (sg.no_speech_prob > 0.7 && sg.avg_logprob < -1.0) || sg.avg_logprob < -1.5 || sg.compression_ratio > 2.4;
+            if (bad) console.log(`🛑 Segmento descartado: "${(sg.text || '').trim()}" (nsp=${sg.no_speech_prob?.toFixed(2)}, logprob=${sg.avg_logprob?.toFixed(2)})`);
             return !bad;
         });
         text = kept.map(sg => (sg.text || '').trim()).join(' ').trim();
@@ -308,16 +307,19 @@ function vocabulary() {
         return vocabCache.words;
     } catch { return []; }
 }
-const hintTerms = (names) => [...new Set([...names, ...vocabulary()])];
+const hintTerms = (names) => [...new Set([...(names || []), ...vocabulary()])];
+// Whisper prompt limpo (glossário de termos): evita que o modelo alucine frases de instrução e troque palavras faladas
 const stylePrompt = (names) => {
-    const terms = hintTerms(names).join(', ');
-    return `Transcrição em português do Brasil, pontuação correta, mantendo gírias, palavrões e termos: ${terms}.`.slice(0, 850);
+    const terms = hintTerms(names);
+    if (!terms.length) return '';
+    return terms.join(', ').slice(0, 850);
 };
 
 // ---------- Motores de STT ----------
 // Cada motor devolve { text, conf, nsp, engine }
 async function sttLocal(wav, names, seconds) {
-    const q = `prompt=${encodeURIComponent(stylePrompt(names))}&hotwords=${encodeURIComponent(hintTerms(names).join(' ').slice(0, 400))}`;
+    const p = stylePrompt(names);
+    const q = p ? `prompt=${encodeURIComponent(p)}&hotwords=${encodeURIComponent(hintTerms(names).join(' ').slice(0, 400))}` : '';
     const resp = await fetch(`${STT_URL}transcribe?${q}`, {
         method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav, signal: AbortSignal.timeout(60_000)
     });
@@ -333,7 +335,10 @@ async function sttGroq(wav, names, seconds) {
     form.append('language', 'pt');
     form.append('temperature', '0');
     form.append('response_format', 'verbose_json');
-    form.append('prompt', stylePrompt(names));
+    const promptText = stylePrompt(names);
+    if (promptText) {
+        form.append('prompt', promptText);
+    }
     const resp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
         method: 'POST', headers: { Authorization: `Bearer ${GROQ_API_KEY}` }, body: form, signal: AbortSignal.timeout(20_000)
     });
@@ -819,7 +824,7 @@ function splitMessage(text, max = 1900) {
 
 async function groqChatText(prompt) {
     if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY não configurada no .env.');
-    const models = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'];
+    const models = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
     let lastError = '';
     for (const model of models) {
         try {
@@ -832,10 +837,10 @@ async function groqChatText(prompt) {
                 body: JSON.stringify({
                     model,
                     temperature: 0.3,
-                    max_tokens: 1500,
+                    max_tokens: 3500,
                     messages: [{ role: 'user', content: prompt }]
                 }),
-                signal: AbortSignal.timeout(35_000)
+                signal: AbortSignal.timeout(45_000)
             });
             if (resp.ok) {
                 const data = await resp.json();
@@ -1086,6 +1091,157 @@ async function syncAtaToConfluence({ title, summaryMarkdown, transcriptLines, ti
     }
 }
 
+// Amostragem cronológica uniforme: preserva Início (abertura/pauta), Fim (decisões/conclusões)
+// e distribui uniformemente o miolo da reunião quando excede a cota de caracteres,
+// evitando perda do contexto inicial da conversa.
+function sampleTranscriptLines(transcriptLines, maxChars = 22_000) {
+    if (!transcriptLines || !transcriptLines.length) {
+        return { text: '', sampledCount: 0, totalCount: 0, isSampled: false };
+    }
+    const fullText = transcriptLines.join('\n');
+    if (fullText.length <= maxChars) {
+        return { text: fullText, sampledCount: transcriptLines.length, totalCount: transcriptLines.length, isSampled: false };
+    }
+
+    const total = transcriptLines.length;
+    // Reserva abertura (ex.: 5 a 10 falas) e encerramento (5 a 10 falas)
+    const headCount = Math.min(10, Math.max(1, Math.floor(total * 0.1)));
+    const tailCount = Math.min(10, Math.max(1, Math.floor(total * 0.1)));
+    const headLines = transcriptLines.slice(0, headCount);
+    const tailLines = transcriptLines.slice(total - tailCount);
+
+    const headText = headLines.join('\n');
+    const tailText = tailLines.join('\n');
+    const noticesLen = 200;
+    const availableForMiddle = maxChars - headText.length - tailText.length - noticesLen;
+
+    const middleLines = transcriptLines.slice(headCount, total - tailCount);
+    const sampledMiddle = [];
+    if (middleLines.length > 0 && availableForMiddle > 500) {
+        const avgMiddleLen = middleLines.join('\n').length / middleLines.length;
+        const targetMiddleCount = Math.max(2, Math.floor(availableForMiddle / (avgMiddleLen * 1.15)));
+        const step = Math.max(1, middleLines.length / targetMiddleCount);
+
+        let currMiddleLen = 0;
+        for (let s = 0; s < middleLines.length; s += step) {
+            const idx = Math.floor(s);
+            if (idx >= middleLines.length) continue;
+            const line = middleLines[idx];
+            if (currMiddleLen + line.length + 1 > availableForMiddle) break;
+            sampledMiddle.push(line);
+            currMiddleLen += line.length + 1;
+        }
+    }
+
+    const condensedCount = total - headCount - tailCount - sampledMiddle.length;
+    const parts = [
+        ...headLines,
+        `... [${condensedCount > 0 ? condensedCount : 0} fala(s) intermediária(s) condensadas para respeitar a cota] ...`,
+        ...sampledMiddle,
+        `... [continuação até o encerramento da chamada] ...`,
+        ...tailLines
+    ];
+
+    let resultText = parts.join('\n');
+    if (resultText.length > maxChars) {
+        resultText = [...headLines.slice(0, 3), '... [conteúdo condensado] ...', ...tailLines.slice(-3)].join('\n');
+        if (resultText.length > maxChars) {
+            resultText = resultText.slice(0, maxChars);
+        }
+    }
+
+    return {
+        text: resultText,
+        sampledCount: headLines.length + tailLines.length + sampledMiddle.length,
+        totalCount: total,
+        isSampled: true
+    };
+}
+
+function buildSummaryPrompt(entries, totalSeconds, options = {}) {
+    const maxChars = options.maxChars || 22_000;
+    const now = options.now || Date.now();
+    const tempoDesc = formatTimeWindow(totalSeconds);
+
+    if (!entries || !entries.length) {
+        return null;
+    }
+
+    const firstEntry = entries[0];
+    const lastEntry = entries[entries.length - 1];
+    const sinceMs = now - (totalSeconds * 1000);
+
+    const fmtTime = (ts) => new Date(ts).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const fmtShort = (ts) => new Date(ts).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+
+    const startTimeStr = fmtShort(sinceMs);
+    const endTimeStr = fmtShort(now);
+    const firstSpokenStr = fmtTime(firstEntry.t);
+    const lastSpokenStr = fmtTime(lastEntry.t);
+
+    const uniqueSpeakers = [...new Set(entries.map(e => e.a).filter(Boolean))];
+    const speakersStr = uniqueSpeakers.join(', ') || 'Participantes não identificados';
+
+    const fmtLine = (e) => `[${fmtShort(e.t)}] ${e.a}: ${e.x}`;
+    const transcriptLines = entries.map(fmtLine);
+
+    const { text: transcriptText, sampledCount, totalCount, isSampled } = sampleTranscriptLines(transcriptLines, maxChars);
+
+    const prompt =
+`Você é um assistente sênior especialista em síntese de reuniões, alinhamentos e conversas em equipe.
+Abaixo está a transcrição cronológica das falas de voz de uma chamada no Discord com timestamps reais.
+
+📅 METADADOS DA SESSÃO:
+• Janela Solicitada: Últimos ${tempoDesc} (de ${startTimeStr} até ${endTimeStr} - Horário de Brasília)
+• Horário da Primeira Fala Registrada: ${firstSpokenStr}
+• Horário da Última Fala Registrada: ${lastSpokenStr}
+• Total de Falas Analisadas: ${sampledCount} de ${totalCount} falas gravadas
+• Participantes Ativos: ${speakersStr}
+
+SUA MISSÃO:
+Gere uma ATA / RESUMO COMPLETO, DETALHADO, ESTRUTURADO E FIEL AO CONTEÚDO REAL.
+Não seja superficial e não resuma tudo em 2 linhas. Aprofunde-se nos detalhes de cada assunto tratado, argumentos levantados, decisões e a evolução cronológica da conversa.
+
+ESTRUTURA OBRIGATÓRIA DA ATA:
+
+1. 📌 **Visão Geral e Propósito da Conversa**:
+   - Apresente o tema central da chamada, os objetivos discutidos e o contexto geral (seja técnico, de produto, de alinhamento, de jogos ou bate-papo de equipe).
+
+2. ⏱️ **Linha do Tempo / Cronologia dos Assuntos**:
+   - Mapeie a evolução temporal dos assuntos usando os timestamps das falas (ex.: [Início HH:MM]: abertura e tema A; [Meio HH:MM]: debate sobre B; [Final HH:MM]: conclusões e combinados de C). Mostre claramente quando cada assunto começou e evoluiu.
+
+3. 💬 **Tópicos Principais & Posicionamento dos Participantes**:
+   - Detalhe cada assunto relevante tratado na conversa.
+   - Atribua as falas, ideias, argumentos e críticas aos respectivos participantes (${speakersStr}).
+
+4. 🛠️ **Ferramentas, Tecnologias, Softwares ou Jogos Mencionados**:
+   - Cite todas as ferramentas, linguagens, plataformas, bibliotecas, repositórios, jogos ou sistemas citados. Se nenhum foi citado, registre explicitamente.
+
+5. ⚠️ **Problemas, Dificuldades ou Impedimentos Levantados**:
+   - Registre dúvidas técnicas, bugs, divergências de opinião, bloqueios operacionais ou dificuldades relatadas por cada pessoa.
+
+6. ✅ **Decisões, Combinados e Próximos Passos**:
+   - Registre com clareza o que ficou acordado, tarefas definidas e quem é o responsável por cada entrega.
+
+DIRETRIZES DE FIDELIDADE:
+- Seja FACTUAL e FIEL à transcrição. Não invente acontecimentos que não foram falados.
+- Se a transcrição contiver gírias, expressões coloquiais ou termos técnicos, interprete o sentido real no contexto da conversa.
+- NUNCA use tabelas Markdown com barras verticais ("|"). Use exclusivamente tópicos verticais ("•"), subtítulos e negrito.
+
+TRANSCRIÇÃO CRONOLÓGICA DAS FALAS:
+${transcriptText}`;
+
+    return {
+        prompt,
+        tempoDesc,
+        sampledCount,
+        totalCount,
+        isSampled,
+        transcriptLines,
+        speakers: uniqueSpeakers
+    };
+}
+
 async function generateAndSendResumo(i, totalSeconds) {
     if (!i.deferred && !i.replied) {
         await i.deferReply({ flags: MessageFlags.Ephemeral });
@@ -1112,66 +1268,23 @@ async function generateAndSendResumo(i, totalSeconds) {
         return i.editReply(`Não há falas registradas nos últimos ${tempoDesc}.`);
     }
 
-    const fmt = (e) => `[${new Date(e.t).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}] ${e.a}: ${e.x}`;
-    const transcriptLines = entries.map(fmt);
-    let transcript = transcriptLines.join('\n');
-    let avisoAmostragem = '';
-
-    // Limite seguro de 18.000 caracteres para respeitar o teto gratuito de 8.000 TPM da Groq
-    const MAX_CHARS = 18_000;
-    let falasProcessadas = entries.length;
-    if (transcript.length > MAX_CHARS) {
-        const keepLines = [];
-        let currLen = 0;
-        for (let idx = transcriptLines.length - 1; idx >= 0; idx--) {
-            const line = transcriptLines[idx];
-            if (currLen + line.length + 1 > MAX_CHARS) break;
-            keepLines.unshift(line);
-            currLen += line.length + 1;
-        }
-        transcript = keepLines.join('\n');
-        falasProcessadas = keepLines.length;
-        avisoAmostragem = ` *(analisadas as ${falasProcessadas} falas mais recentes de ${entries.length} para respeitar a cota gratuita)*`;
-    }
-
-    const prompt =
-`Você é um assistente técnico sênior e redator de atas de engenharia e desenvolvimento de software.
-Abaixo está a transcrição bruta das falas de voz de uma chamada no Discord dos últimos ${tempoDesc}.
-Gere uma ATA TÉCNICA estruturada, analítica, profissional e direta ao ponto em português do Brasil.
-
-ESTRUTURA OBRIGATÓRIA DA ATA TÉCNICA:
-
-1. 📌 **Visão Geral e Contexto**:
-   - Resumo claro e conciso (2 a 3 linhas) do tema central, projeto ou propósito principal discutido na chamada.
-
-2. 🛠️ **Arquitetura, Tecnologias e Ferramentas**:
-   - Tecnologias, plataformas, bibliotecas, ferramentas e processos citados (ex.: APIs, Docker, Git/GitHub, Jira, Notion, banco de dados, deploy, etc.).
-   - Ideias técnicas, arquiteturas propostas e argumentos levantados por cada participante.
-
-3. ⚠️ **Problemas, Impedimentos ou Gargalos**:
-   - Dificuldades técnicas relatadas, bugs, falhas em ferramentas, limitações de infraestrutura ou pontos de atenção discutidos.
-
-4. ✅ **Decisões Técnicas e Próximos Passos**:
-   - Decisões consolidadas e tarefas definidas.
-   - Atribuição de responsabilidades (quem ficou encarregado de quê, quando mencionado).
-
-DIRETRIZES DE RIGOR E FIDELIDADE:
-- Seja ESTRITAMENTE TÉCNICO, objetivo e factual. NÃO deduza sentimentos, não romanceie e não tente adivinhar piadas.
-- Baseie-se APENAS no conteúdo real presente na transcrição fornecida.
-- Ignore ruídos de fundo, trechos ininteligíveis, palavras desconexas de jogos ou interjeições sem conteúdo técnico.
-- NUNCA use tabelas Markdown com barras verticais ("|"). O Discord NÃO renderiza tabelas e elas ficam desformatadas. Use exclusivamente tópicos verticais (bullet points com "•"), subtítulos e negrito.
-
-TRANSCRIÇÃO:
-${transcript}`;
+    const summaryData = buildSummaryPrompt(entries, totalSeconds);
+    const avisoAmostragem = summaryData.isSampled ?
+        ` *(analisadas ${summaryData.sampledCount} falas distribuídas cronologicamente de ${summaryData.totalCount})*` : '';
 
     let result;
-    try { result = await summarizeText(prompt); } catch (e) { return i.editReply(`❌ Erro ao gerar resumo: ${e.message}`); }
+    try {
+        result = await summarizeText(summaryData.prompt);
+    } catch (e) {
+        return i.editReply(`❌ Erro ao gerar resumo: ${e.message}`);
+    }
+
     const rawSummary = (result?.text || '').trim();
     if (!rawSummary) return i.editReply('❌ A IA não retornou resumo.');
     const summary = formatDiscordMarkdown(rawSummary);
 
     try {
-        const head = `📋 **Resumo Técnico dos últimos ${tempoDesc}** — ${falasProcessadas} fala(s)${avisoAmostragem} *(gerado por ${result.model})*\n\n`;
+        const head = `📋 **Resumo & Ata Técnica dos últimos ${tempoDesc}** — ${summaryData.sampledCount} fala(s)${avisoAmostragem} *(gerado por ${result.model})*\n\n`;
         for (const part of splitMessage(head + summary)) {
             await i.user.send(part);
         }
@@ -1493,6 +1606,9 @@ module.exports = {
     pruneLog,
     stripHtmlTags,
     generatePrometheusMetrics,
-    recordHttpRequest
+    recordHttpRequest,
+    sampleTranscriptLines,
+    buildSummaryPrompt,
+    stylePrompt
 };
 
