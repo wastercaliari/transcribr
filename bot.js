@@ -56,6 +56,7 @@ const {
     clearAudioSession,
     getAudioSessionStats
 } = require('./src/audio_recorder.js');
+const { speechStorage } = require('./src/speech_storage.js');
 
 const DISCORD_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
@@ -80,19 +81,18 @@ let state = { paused: false };
 try { state = { ...state, ...JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')) }; } catch { /* primeira execução */ }
 const LOG_FILE = path.join(__dirname, 'transcript_log.jsonl');
 function logLine(guildId, author, text) {
-    try { fs.appendFileSync(LOG_FILE, JSON.stringify({ t: Date.now(), g: guildId, a: author, x: text }) + '\n'); } catch { /* ignora */ }
+    try {
+        speechStorage.logLine(guildId, author, text);
+    } catch { /* ignora */ }
 }
 function readLog(guildId, sinceMs) {
     try {
-        return fs.readFileSync(LOG_FILE, 'utf8').split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } })
-            .filter(e => e && e.g === guildId && e.t >= sinceMs);
+        return speechStorage.readLog(guildId, sinceMs);
     } catch { return []; }
 }
 function pruneLog() {
     try {
-        const cutoff = Date.now() - 14 * 24 * 3600 * 1000;
-        const keep = fs.readFileSync(LOG_FILE, 'utf8').split('\n').filter(l => { try { return JSON.parse(l).t >= cutoff; } catch { return false; } });
-        fs.writeFileSync(LOG_FILE, keep.length ? keep.join('\n') + '\n' : '');
+        speechStorage.pruneLog();
     } catch { /* sem log ainda */ }
 }
 const saveState = () => { try { fs.writeFileSync(STATE_FILE, JSON.stringify(state)); } catch { /* ignora */ } };
@@ -876,8 +876,9 @@ async function handleLimpar(i) {
             if (total % 500 < 100) i.editReply(`🧹 Limpando... ${total} mensagens apagadas até agora.`).catch(() => {});
         }
         clearAudioSession(i.guild.id);
+        speechStorage.clearGuild(i.guild.id);
         console.log(`🧹 /limpar: ${total} mensagens apagadas em #${ch.name}`);
-        await i.editReply(`🧹 Pronto! ${total} mensagem(ns) apagada(s) de <#${ch.id}> e buffer de áudio limpo.`).catch(() => {});
+        await i.editReply(`🧹 Pronto! ${total} mensagem(ns) apagada(s) de <#${ch.id}> e histórico de áudio/falas limpo.`).catch(() => {});
     } finally {
         cleaning = false;
     }
@@ -1445,6 +1446,10 @@ module.exports = {
     exportSessionAudioWav,
     clearAudioSession,
     getAudioSessionStats,
-    handleAudio
+    handleAudio,
+    speechStorage,
+    logLine,
+    readLog,
+    pruneLog
 };
 
