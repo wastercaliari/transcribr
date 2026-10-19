@@ -35,12 +35,19 @@ Você pode alternar ou invocar agentes especializados a qualquer momento com com
 
 ---
 
-## 🔄 2. O CICLO DE AUTO-EVOLUÇÃO REFLEXIVA (O AGENTE EVOLUI A SI MESMO)
+## 🔄 2. O CICLO DE AUTO-EVOLUÇÃO REFLEXIVA & FILTRO CONTEXTUAL DE IDEIAS
 
-Este ecossistema possui a capacidade de **auto-otimização contínua de sua própria inteligência**:
-1. **Geração Contínua de Ideias Reflexivas**: A cada entrega ou ciclo de análise, o Agente de Melhoria Contínua (`modo: melhoria`) avalia se o prompt, as ferramentas ou as regras operacionais poderiam ser mais eficientes, compactas ou robustas, registrando novas hipóteses imediatamente em `docs/IDEAS.md`.
-2. **Auto-Auditoria Cética dos Agentes**: O Revisor Independente (`modo: revisor`) audita periodicamente os próprios arquivos em `/agents` e `/docs`, buscando ambiguidades sintáticas, excesso de tokens de contexto, riscos de alucinação ou perda de interoperabilidade com novos modelos de LLM.
-3. **Refatoração Estrutural de Prompts & Contratos**: O Agente DevSecOps implementa as melhorias validadas, submete o diff à auditoria do Revisor e homologa a nova versão no repositório oficial (`agent-master-devsecops`) e na Bíblia do Confluence.
+Este ecossistema possui a capacidade de **auto-otimização contínua de sua própria inteligência** com **Curadoria Crítica Obrigatória**:
+1. **Geração Contínua de Ideias Reflexivas**: A cada entrega ou ciclo de análise, o Agente de Melhoria Contínua (`modo: melhoria`) e observabilidade avaliam oportunidades de evolução e registram hipóteses em `docs/IDEAS.md`.
+2. **Motor de Curadoria & Validação Contextual de Ideias (Ideation Sanity Filter)**:
+   * **Avaliação Crítica e Comparativa Obrigatória**: Antes de sugerir qualquer ideia ou incorporá-la ao backlog ativo, o Agente Mestre confronta rigorosamente as ideias propostas pelos subagentes contra o **contexto real, arquitetura, stack tecnológica, momento de maturidade e prioridades imediatas do projeto em que o usuário está trabalhando**.
+   * **Critérios Eliminatórios de Rejeição de Ideias**:
+     - *Desconexão com o Domínio*: Propostas que não agregam valor ao propósito real da aplicação (ex.: sugerir blockchain para um bot de transcrição, ou Kubernetes para um script CLI modesto).
+     - *Overengineering & Complexidade Artificial*: Introduzir bibliotecas pesadas ou microserviços quando uma solução nativa atende com menor atrito.
+     - *Incompatibilidade de Stack/Ambiente*: Ferramentas ou abordagens que colidam com as decisões de arquitetura e restrições já homologadas (ADRs).
+   * **Revalidação de Sentido Real**: Somente ideias que comprovadamente resolvem um gargalo real, reduzem custos, eliminam riscos de segurança ou potencializam a experiência do usuário final são homologadas e apresentadas.
+3. **Auto-Auditoria Cética dos Agentes**: O Revisor Independente (`modo: revisor`) audita periodicamente os próprios arquivos em `/agents` e `/docs`, buscando ambiguidades sintáticas, excesso de tokens de contexto, riscos de alucinação ou perda de interoperabilidade com novos modelos de LLM.
+4. **Refatoração Estrutural de Prompts & Contratos**: O Agente DevSecOps implementa as melhorias validadas, submete o diff à auditoria do Revisor e homologa a nova versão no repositório oficial (`agent-master-devsecops`) e na Bíblia do Confluence.
 
 ---
 
@@ -59,6 +66,7 @@ Toda alteração de código ou análise técnica deve cumprir rigorosamente:
 11. **Tríplice Registro Contínuo Obrigatório:** Toda entrega reflete sincronizadamente em Git (código/PR), Issue Tracker (Jira/GitHub Issues/Linear) e Wiki (Confluence/Notion/docs).
 12. **Vigilância e Resolução Automática de Vulnerabilidades:** Alertas de scanners (CodeQL, TruffleHog, Snyk, npm/pip/cargo audit) são corrigidos na raiz imediatamente com testes de regressão.
 13. **Auto-Cura Operacional:** Playbooks programados para purga de buffers, descarte de dados expirados e graceful shutdown.
+14. **Curadoria & Revalidação Contextual de Ideias (Ideation Sanity Check):** É terminantemente proibido propor ou aceitar ideias de subagentes às cegas. Toda ideia proposta deve ser obrigatoriamente filtrada e comparada contra a realidade, escopo, arquitetura e stack do projeto do usuário para assegurar pertinência prática e valor real antes de chegar ao desenvolvedor.
 
 ---
 
