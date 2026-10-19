@@ -63,6 +63,13 @@ const { renderDashboardHtml } = require('./src/web_dashboard.js');
 const { normalizeTargetLanguage, getLanguageInstructions } = require('./src/multilingual_translation.js');
 const { createJiraIssue, extractActionItemsFromAta } = require('./src/jira_integration.js');
 const { dispatchAtaToCorporateChannels, formatSlackAtaPayload, formatTeamsAtaPayload } = require('./src/corporate_webhooks.js');
+const {
+    KeywordWatcher,
+    DEFAULT_CRITICAL_PATTERNS,
+    formatAlertEmbed,
+    dispatchProactiveAlert
+} = require('./src/keyword_watcher.js');
+const globalKeywordWatcher = new KeywordWatcher();
 
 const guildDiarizers = new Map();
 function getGuildDiarizer(guildId) {
@@ -539,6 +546,23 @@ function startListening(guild, session) {
                 await postText(guild, `🎙️ **${userName}**: ${text}`);
                 console.log(`📤 [${userName}] "${text}"`);
                 recordTranscriptionMetric({ durationSec: seconds, latencyMs, engine: sttResult?.engine, posted: true });
+
+                // Alertas proativos por palavras-chave críticas (SCRUM-60 / I-16)
+                try {
+                    const scanResult = globalKeywordWatcher.scan(text, { guildId: guild.id, author: userName });
+                    if (scanResult.triggered) {
+                        console.warn(`🚨 [Vigilância Ativa] Palavra-chave crítica detectada de ${userName}:`, scanResult.alerts.map(a => a.term).join(', '));
+                        await dispatchProactiveAlert({
+                            author: userName,
+                            text,
+                            alerts: scanResult.alerts,
+                            channelName: voiceChannel?.name || 'Canal de Voz',
+                            guildName: guild.name
+                        });
+                    }
+                } catch (alertErr) {
+                    console.warn('Falha na vigilância de palavras-chave:', alertErr.message);
+                }
             } catch (err) {
                 console.error(`Erro ao transcrever ${userName}:`, err.message || err);
             }
@@ -1772,6 +1796,11 @@ module.exports = {
     handleJira,
     dispatchAtaToCorporateChannels,
     formatSlackAtaPayload,
-    formatTeamsAtaPayload
+    formatTeamsAtaPayload,
+    KeywordWatcher,
+    globalKeywordWatcher,
+    formatAlertEmbed,
+    dispatchProactiveAlert,
+    DEFAULT_CRITICAL_PATTERNS
 };
 
