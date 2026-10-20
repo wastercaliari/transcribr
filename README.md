@@ -1,170 +1,237 @@
+<div align="center">
+
 # TranscriBR 🎙️
 
-Bot do Discord para **transcrição de voz em tempo real e resumos inteligentes com IA**, que entra sozinho nas chamadas e posta tudo no chat de texto.
+**Bot corporativo para Discord de transcrição de voz em tempo real e geração de atas técnicas com IA.**  
+Entra automaticamente nas chamadas de voz com suporte nativo à criptografia **Discord DAVE (E2EE)** e entrega atas detalhadas, áudios consolidados e métricas com custo zero de infraestrutura de inteligência artificial.
 
-- **100% Compatível com Discord DAVE (E2EE)** (suporte nativo à criptografia de ponta a ponta do Discord).
-- **Voz → Texto ultrarrápido**: Groq Whisper Large-v3 (resposta em ~0.5s, 100% gratuito).
-- **Resumo Automático de Reuniões**: O comando `/resumo` sintetiza tópicos, decisões e combinados via LLM de alta capacidade (OpenAI GPT-OSS 120B / Qwen na Groq).
-- **Sem Censura e Contextual**: Não censura palavrões nem gírias e aprende os apelidos das pessoas na sala via `vocabulario.txt`.
-- **Hospedagem 24/7 na Nuvem**: Pronto para rodar com 1 clique no Railway com consumo mínimo (~80MB de RAM).
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20.0.0-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Discord.js](https://img.shields.io/badge/Discord.js-v14-5865F2?logo=discord&logoColor=white)](https://discord.js.org)
+[![Groq Cloud](https://img.shields.io/badge/Groq_Whisper-Large--v3-F55036?logo=fastapi&logoColor=white)](https://groq.com)
+[![DAVE Protocol](https://img.shields.io/badge/Discord-DAVE_E2EE-blue)](https://discord.com)
+[![DevSecOps CI](https://github.com/wastercaliari/transcribr/actions/workflows/ci.yml/badge.svg)](https://github.com/wastercaliari/transcribr/actions)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+[Recursos](#-principais-recursos) •
+[Quickstart](#-quickstart-em-3-minutos) •
+[Como Configurar](#-passo-a-passo-de-configura%C3%A7%C3%A3o) •
+[Comandos](#-comandos-slash-do-discord) •
+[Onde Hospedar](#-onde-e-como-hospedar) •
+[Dashboard & Métricas](#-web-dashboard--observabilidade) •
+[Troubleshooting](#-solu%C3%A7%C3%A3o-de-problemas-troubleshooting)
 
 ---
 
-## 📋 Pré-requisitos (Obtendo suas chaves gratuitas)
+</div>
 
-Você precisará de apenas **2 coisas gratuitas** antes de iniciar:
+## ✨ Principais Recursos
+
+- 🔒 **100% Compatível com Discord DAVE (E2EE)**: Suporte nativo ao protocolo de criptografia de ponta a ponta do Discord via `@snazzah/davey`.
+- ⚡ **Voz para Texto Ultrarrápido (~500ms)**: Processamento pelo Whisper Large-v3 na infraestrutura LPU da Groq Cloud (100% gratuito, sem fila).
+- 🧠 **Atas Técnicas Inteligentes (`/resumo`)**: Geração de atas ricas em markdown na sua DM, com ranking exato de participação, linha do tempo detalhada e compromissos acordados.
+- 🛡️ **Anti-Alucinação Factual (SCRUM-76)**: Persistência de blocos de 50 falas no SQLite ancorando datas, horários e autores reais no prompt da LLM.
+- 🎙️ **Exportação de Áudio Consolidado (`/audio`)**: Download de áudio unificado WAV PCM 16kHz mono pós-reunião para auditoria ou escuta.
+- 🌐 **Dashboard Web Executivo**: Interface gráfica em tempo real em `http://localhost:8080/dashboard` para inspeção de falas e métricas.
+- 📈 **Observabilidade Prometheus**: Endpoint `/metrics` no padrão canônico OpenMetrics para integração imediata com Grafana.
+- 🎯 **Vocabulário Personalizado & Filtro Fonético**: Aprende os apelidos e gírias da equipe sem censura via `vocabulario.txt` e `corrections.json`.
+- 🌍 **Suporte Multilíngue**: Atas geradas em português, inglês, espanhol ou formato bilíngue corporativo (`/resumo idioma:en`).
+- 💼 **Integrações Enterprise**: Sincronização automática com Atlassian Confluence, criação de tarefas no Jira (`/jira`), Slack e Microsoft Teams.
+
+---
+
+## ⚡ Quickstart em 3 Minutos
+
+Se você já possui o **Node.js (versão 20 ou superior)** instalado:
+
+```bash
+# 1. Clone o repositório
+git clone https://github.com/wastercaliari/transcribr.git
+cd transcribr
+
+# 2. Copie o arquivo de exemplo e instale as dependências
+cp .env.example .env
+npm install
+
+# 3. Preencha apenas DISCORD_BOT_TOKEN e GROQ_API_KEY no .env, e inicie:
+npm start
+```
+
+> **Usuários do Windows:** Você também pode simplesmente dar um duplo clique em [`iniciar_servidor.bat`](./iniciar_servidor.bat), que cuidará da instalação e execução automaticamente.
+
+---
+
+## 🔑 Passo a Passo de Configuração
+
+Para rodar o bot no seu próprio servidor Discord, você precisará de apenas **2 chaves gratuitas**:
 
 ### 1. Criar o Bot no Discord Developer Portal
-1. Acesse o **[Discord Developer Portal](https://discord.com/developers/applications)** e clique em **New Application** (dê o nome de *TranscriBR* ou o nome que desejar).
-2. No menu lateral esquerdo, vá em **Bot**:
-   - Clique em **Reset Token** e copie o seu **Token** (guarde-o, ele será o seu `DISCORD_BOT_TOKEN`).
-   - Na seção **Privileged Gateway Intents**, ative as opções:
-     - ✅ **Message Content Intent** (se disponível)
-3. No menu lateral esquerdo, vá em **OAuth2** → **URL Generator**:
-   - Em **Scopes**, marque: `bot` e `applications.commands`.
+
+1. Acesse o **[Discord Developer Portal](https://discord.com/developers/applications)** e clique em **New Application**.
+2. Dê um nome à aplicação (ex.: `TranscriBR`) e confirme.
+3. No menu lateral esquerdo, navegue até **Bot**:
+   - Clique em **Reset Token**, copie o token exibido e cole-o no campo `DISCORD_BOT_TOKEN` do seu arquivo `.env`.
+   - Role até a seção **Privileged Gateway Intents** e marque obrigatoriamente:
+     - ✅ **Message Content Intent** (essencial para leitura dos comandos e alertas).
+4. No menu lateral esquerdo, vá em **OAuth2** → **URL Generator**:
+   - Em **Scopes**, selecione:
+     - `bot`
+     - `applications.commands`
    - Em **Bot Permissions**, marque:
      - `View Channels` (Ver canais)
      - `Send Messages` (Enviar mensagens)
      - `Manage Messages` (Gerenciar mensagens — para o comando `/limpar`)
+     - `Attach Files` (Anexar arquivos — para envio de atas .md e áudios .wav)
      - `Read Message History` (Ver histórico de mensagens)
-     - `Connect` (Conectar)
+     - `Connect` (Conectar em canais de voz)
      - `Speak` (Falar)
-4. Copie a **URL gerada no final da página**, cole no seu navegador e convide o bot para o seu servidor Discord.
-5. No seu servidor Discord, crie um canal de texto chamado **`transcribr-`** (é nele que o bot enviará as transcrições).
-
-### 2. Obter a Chave Gratuita da Groq
-1. Acesse o **[Groq Cloud Console](https://console.groq.com/keys)** e faça login com sua conta Google ou GitHub.
-2. Clique em **Create API Key**, dê um nome e copie a chave gerada (ela começa com `gsk_...`).
-   *(Essa chave gratuita cobre tanto a transcrição do Whisper quanto os resumos do `/resumo`).*
+5. **Link Rápido de Convite:** Você pode substituir `SEU_CLIENT_ID` (encontrado em *OAuth2* -> *Client ID*) na URL abaixo e abrir no navegador para convidar o bot:
+   ```text
+   https://discord.com/oauth2/authorize?client_id=SEU_CLIENT_ID&permissions=3148864&scope=bot%20applications.commands
+   ```
+6. No seu servidor Discord, crie um canal de texto chamado **`transcribr-`** (caso você dê permissão de gerenciar canais ao bot, ele mesmo criará o canal se ele não existir).
 
 ---
 
-## 🌐 Onde Hospedar? (Total Liberdade)
+### 2. Obter a Chave Gratuita da Groq Cloud
 
-O TranscriBR é **100% agnóstico de infraestrutura**. Ele roda empacotado em **Node.js** e conta com um **`Dockerfile` otimizado** pronto para uso. Você pode hospedá-lo onde achar melhor:
+1. Acesse o **[Groq Cloud Console](https://console.groq.com/keys)** e faça login gratuitamente com sua conta Google ou GitHub.
+2. Clique no botão **Create API Key**, insira um identificador qualquer e copie a chave gerada (iniciada por `gsk_...`).
+3. Cole a chave no campo `GROQ_API_KEY` do seu arquivo `.env`.
 
-- ☁️ **Serviços de Nuvem / PaaS:** [Railway](https://railway.app), [Render](https://render.com), [Fly.io](https://fly.io), [Koyeb](https://koyeb.com), etc.
-- 🖥️ **VPS / Servidores Dedicados:** Oracle Cloud (Free Tier), DigitalOcean, Hetzner, AWS, Google Cloud, Azure, etc.
-- 🐳 **Docker / Docker Compose:** No seu próprio servidor caseiro (Homelab, Raspberry Pi, Unraid, TrueNAS).
-- 💻 **No seu próprio PC:** Rodando localmente em segundo plano (Windows, Linux ou macOS).
-
-Basta apenas que o ambiente tenha as **variáveis de ambiente configuradas** (`DISCORD_BOT_TOKEN`, `GROQ_API_KEY` e `STT_ORDER=groq`).
+> 💡 **Nota:** A Groq disponibiliza uma cota gratuita generosa com capacidade de sobra para transcrição contínua em tempo real (Whisper Large-v3) e geração de resumos longos com LLMs de última geração (GPT-OSS 120B / Llama 3.3). Não é necessário cadastrar cartão de crédito.
 
 ---
 
-## 🚀 Opção 1: Hospedagem 24/7 na Nuvem (Exemplo: Railway)
+## 💬 Comandos Slash do Discord
 
-O Railway é uma das formas mais simples e rápidas para deixar o bot online 24/7 sem precisar manter o PC ligado:
+Todos os comandos são integrados nativamente com a interface de Slash Commands do Discord:
 
-### Passo a Passo no Railway:
-1. Faça um **Fork** deste repositório para a sua conta do GitHub (botão **Fork** no topo direito).
-2. Acesse o **[Railway.app](https://railway.app)** e faça login com o seu GitHub.
-3. Clique em **+ New Project** → **Deploy from GitHub repo** e selecione o repositório `transcribr`.
-4. Assim que o projeto carregar, clique no serviço dele no painel e vá na aba **Variables**.
-5. Adicione as variáveis abaixo clicando em **Add Variable**:
-
-| Nome da Variável | O que colar | Descrição |
+| Comando | Descrição | Exemplo de Uso |
 |---|---|---|
-| `DISCORD_BOT_TOKEN` | *(seu token do Discord)* | Token copiado no Discord Developer Portal |
-| `GROQ_API_KEY` | `gsk_...` | Chave copiada no Console da Groq |
-| `STT_ORDER` | `groq` | Define o motor de voz como Groq Whisper |
+| `/transcrever` | Conecta o bot à sua chamada de voz atual e inicia a transcrição contínua. | `/transcrever` |
+| `/parar` | Pausa a escuta do bot e faz com que ele se desconecte do canal de voz. | `/parar` |
+| `/resumo` | Gera e envia na sua DM uma **Ata Técnica de Engenharia** completa com linha do tempo de blocos de 50 falas, decisões e arquivo `.md` anexado. | `/resumo minutos:30`<br>`/resumo horas:1 minutos:15`<br>`/resumo minutos:45 idioma:en` |
+| `/audio` | Exporta e anexa no chat o arquivo `.wav` consolidado e sincronizado da conversa. | `/audio minutos:30` |
+| `/jira criar-tarefa` | Transforma decisões verbais da chamada em tarefas formais no Jira Cloud. | `/jira criar-tarefa titulo:Refatorar cache` |
+| `/status` | Exibe painel em tempo real de saúde, motores STT conectados, biometria e CPU. | `/status` |
+| `/limpar` | Apaga o histórico de mensagens do canal `transcribr-` com segurança. | `/limpar` |
 
-6. O Railway fará o build do container automaticamente e seu bot ficará **online imediatamente 24/7**!
-
-*(Caso use Render, Fly.io ou outra nuvem, o processo é idêntico: conecte o repositório GitHub e insira as mesmas 3 variáveis de ambiente nas configurações do serviço).*
+### Parâmetros Suportados no `/resumo`:
+- `horas`: Quantidade de horas anteriores a incluir no escopo da ata.
+- `minutos`: Quantidade de minutos anteriores a incluir.
+- `segundos`: Quantidade de segundos anteriores (ex.: `segundos:90` para alinhamento rápido).
+- `idioma`: Idioma desejado para a ata (`pt` = Português, `en` = Inglês, `es` = Espanhol, `bilingual` = Formato executivo bilíngue).
 
 ---
 
-## 💻 Opção 2: Hospedagem em VPS, Servidor Linux ou Docker
+## 🌐 Onde e Como Hospedar
 
-Se você tem uma **VPS** (como Ubuntu/Debian) ou usa **Docker**:
+O TranscriBR é completamente agnóstico de infraestrutura e consome menos de 90 MB de memória RAM.
 
-### Usando Docker:
+### Opção 1: Rodando Localmente no Computador
+
+- **Windows:** Dê duplo clique em [`iniciar_servidor.bat`](./iniciar_servidor.bat). O script valida os pré-requisitos, instala o necessário e possui loop de auto-reconexão caso o bot seja reiniciado.
+- **Linux / macOS:**
+  ```bash
+  npm start
+  # Ou em background com PM2:
+  npm install -g pm2
+  pm2 start bot.js --name transcribr
+  ```
+
+---
+
+### Opção 2: Deploy 24/7 na Nuvem com 1 Clique (Railway)
+
+O [Railway](https://railway.app) é a forma recomendada para manter o bot operando 24 horas por dia:
+
+1. Faça um **Fork** deste repositório para o seu GitHub.
+2. No [Railway](https://railway.app), clique em **New Project** → **Deploy from GitHub repo** e selecione o `transcribr`.
+3. No painel do serviço no Railway, abra a aba **Variables** e configure:
+   - `DISCORD_BOT_TOKEN`: Seu token do bot no Discord.
+   - `GROQ_API_KEY`: Sua chave `gsk_...` da Groq.
+   - `STT_ORDER`: `groq`
+4. *(Opcional)* Na aba **Settings** → **Volumes**, adicione um volume persistente montado em `/app/data` para que o banco SQLite (`transcribr.sqlite`) mantenha o histórico entre deploys.
+
+---
+
+### Opção 3: Usando Docker e Docker Compose
+
+O repositório já inclui um [`Dockerfile`](./Dockerfile) otimizado baseado em Node.js Alpine:
+
 ```bash
-# 1. Clone o repositório
-git clone https://github.com/SEU_USUARIO/transcribr.git
-cd transcribr
-
-# 2. Crie o arquivo .env com suas chaves (baseado no .env.example)
-cp .env.example .env
-# edite o .env com seu editor preferido (nano .env)
-
-# 3. Construa e suba o container em background:
+# Execução direta com Docker
 docker build -t transcribr .
-docker run -d --name transcribr --restart always --env-file .env transcribr
+docker run -d --name transcribr --restart always --env-file .env -v $(pwd)/data:/app/data -p 8080:8080 transcribr
+```
+
+Ou usando o stack de observabilidade com Prometheus e Grafana:
+```bash
+docker-compose -f docker-compose.monitoring.yml up -d
 ```
 
 ---
 
-## 🖥️ Opção 3: Como Rodar Localmente no seu Computador
+## 📊 Web Dashboard & Observabilidade
 
-Se preferir rodar direto na sua máquina (Windows ou Linux):
+Assim que o TranscriBR inicia, um servidor HTTP embutido fica disponível na porta `PORT` (padrão: `8080`):
 
-1. Clone o repositório:
-   ```bash
-   git clone https://github.com/SEU_USUARIO/transcribr.git
-   cd transcribr
-   ```
-2. Crie uma cópia do arquivo `.env.example` com o nome de `.env`:
-   - No Windows: `copy .env.example .env`
-   - No Linux/Mac: `cp .env.example .env`
-3. Abra o arquivo `.env` com qualquer editor de texto e preencha suas chaves:
-   ```env
-   DISCORD_BOT_TOKEN=seu_token_do_discord_aqui
-   GROQ_API_KEY=sua_chave_groq_aqui
-   STT_ORDER=groq
-   ```
-4. Instale as dependências e inicie o bot:
-   ```bash
-   npm install
-   npm start
-   ```
-   *(No Windows, você também pode simplesmente dar dois cliques em `iniciar_servidor.bat`).*
+- 🖥️ **Web Dashboard:** `http://localhost:8080/dashboard` — Acompanhe falas recentes, latência média do Whisper, perfis biométricos e estatísticas operacionais.
+- 📈 **Métricas Prometheus:** `http://localhost:8080/metrics` — Exportação no formato canônico OpenMetrics 0.0.4 para scraping pelo Prometheus/Grafana.
+- 🩺 **Healthcheck:** `http://localhost:8080/health` — Probes de liveness e readiness para Kubernetes, Railway e Docker.
 
 ---
 
-## 💬 Comandos Disponíveis no Discord
+## 🎯 Personalização de Vocabulário e Termos Técnicos
 
-| Comando | Descrição |
-|---|---|
-| `/transcrever` | Faz o bot entrar na sua chamada de voz atual e começar a transcrever. |
-| `/parar` | Pausa a transcrição e faz o bot sair da call. |
-| `/resumo [horas] [minutos] [segundos]` | Gera uma **Ata Técnica** estruturada na sua DM com visão geral, arquitetura/ferramentas citadas, impedimentos e decisões técnicas tomadas na janela de tempo informada. |
-| `/limpar` | Apaga o histórico de transcrições do canal `transcribr-` *(requer permissão de Gerenciar Mensagens)*. |
-| `/status` | Exibe se o bot está ativo, pausado e quais motores estão conectados. |
-
-### 💡 Exemplos do `/resumo`:
-- `/resumo segundos:90` — Ata técnica dos últimos 90 segundos.
-- `/resumo minutos:30` — Ata técnica estruturada dos últimos 30 minutos de call.
-- `/resumo horas:2` — Ata técnica completa das últimas 2 horas de reunião.
-- `/resumo horas:1 minutos:30` — Ata técnica de 1 hora e meia.
+- **Vocabulário Ativo ([`vocabulario.txt`](./vocabulario.txt)):** Adicione nomes de membros da equipe, apelidos, gírias e jargões da sua empresa (um por linha). O Whisper prioriza esses termos foneticamente sem precisar reiniciar o bot.
+- **Dicionário de Correções ([`corrections.json`](./corrections.json)):** Mapeie correções automáticas para palavras frequentemente confundidas pelo reconhecimento de voz:
+  ```json
+  {
+    "micro servicos": "microsserviços",
+    "git hub": "GitHub"
+  }
+  ```
 
 ---
 
-## 🎯 Melhorando a Precisão da Transcrição
+## 🔧 Solução de Problemas (Troubleshooting)
 
-- **Vocabulário Personalizado (`vocabulario.txt`):** Adicione gírias, nomes dos seus amigos e termos técnicos em `vocabulario.txt` (um por linha). O Whisper usará essa lista como prioridade fonética sem você precisar reiniciar o bot.
-- **Dicionário Fonético (`corrections.json`):** Caso o Whisper confunda termos específicos com palavras parecidas, adicione pares `"errado": "correto"` em `corrections.json`.
+<details>
+<summary><strong>1. O bot entra na chamada de voz, mas não envia nada no canal de texto</strong></summary>
 
----
+- Certifique-se de que no [Discord Developer Portal](https://discord.com/developers/applications) o **Message Content Intent** está ativado na aba **Bot**.
+- Verifique se o canal de texto se chama exatamente `transcribr-` ou se o bot possui a permissão de **Enviar Mensagens** e **Ver Canais** nele.
+</details>
 
-## 🔒 Segurança
+<details>
+<summary><strong>2. O bot não reconhece comandos de barra (/resumo, /transcrever)</strong></summary>
 
-- O arquivo `.env` com suas chaves privadas está listado no `.gitignore` e **nunca é versionado ou exposto**.
-- No Railway, todas as suas variáveis de ambiente ficam criptografadas na aba **Variables**.
+- Certifique-se de que ao convidar o bot você selecionou os scopes `bot` e `applications.commands`.
+- Aguarde até 2 minutos para que o Discord indexe os comandos slash globalmente ou convide o bot novamente usando a URL recomendada neste guia.
+</details>
+
+<details>
+<summary><strong>3. O bot desconectou ou parou por erro de configuração</strong></summary>
+
+- No Windows, execute [`diagnostico.bat`](./diagnostico.bat) ou `powershell -File diagnostico.ps1` para gerar um relatório completo de conectividade e dependências.
+</details>
 
 ---
 
 ## 📂 Estrutura do Repositório
 
-O projeto segue as melhores práticas organizacionais de engenharia e separação de responsabilidades:
-- [`agents/`](./agents/): Personas de inteligência artificial, contratos autônomos e o arquivo plug-and-play consolidado [`AGENTE_MESTRE_UNIVERSAL.md`](./agents/AGENTE_MESTRE_UNIVERSAL.md).
-- [`docs/`](./docs/): Normas de engenharia ([`RULES.md`](./docs/RULES.md)), histórico de entregas ([`CHANGELOG.md`](./docs/CHANGELOG.md)), estado operacional ([`STATE.md`](./docs/STATE.md)) e cálculos de áudio ([`CALCULATIONS.md`](./docs/CALCULATIONS.md)).
-- [`src/`](./src/): Código-fonte modular do bot (DSP de áudio, gravação WAV, persistência SQLite, métricas Prometheus e sincronização Confluence).
-- [`tests/`](./tests/): Bateria automatizada de testes unitários e de integração (Node.js Test Runner).
-- [`monitoring/`](./monitoring/): Infraestrutura de observabilidade como código (Dashboards Grafana e Alertas Prometheus).
-- [`scripts/`](./scripts/): Ferramentas operacionais, scanners de incidentes e sincronização Git-Jira-Confluence.
-- [`dist/`](./dist/): Bundles portáteis compilados para execução em qualquer LLM.
+```text
+├── agents/            # Contratos de governança e personas de IA (AGENTE_MESTRE_UNIVERSAL.md)
+├── docs/              # Normas de engenharia (RULES.md), CHANGELOG, STATE e decisões (ADRs)
+├── src/               # Módulos de engenharia (DSP, áudio WAV, SQLite, webhooks e métricas)
+├── tests/             # Bateria automatizada de 152 testes unitários e de integração
+├── monitoring/        # Dashboards Grafana IaC e alertas Prometheus
+├── scripts/           # Ferramentas operacionais e automações Git-Jira-Confluence
+├── bot.js             # Núcleo de execução do bot Discord
+├── Dockerfile         # Container corporativo multi-stage
+└── .env.example       # Modelo de variáveis de ambiente documentado
+```
 
 ---
 
