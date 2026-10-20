@@ -466,35 +466,93 @@ async function postText(guild, payload) {
 
 // ---------- Sessão de voz ----------
 function humansIn(channel) {
-    return [...channel.members.values()].filter(m => !m.user.bot);
+    if (!channel) return [];
+    const members = channel.members ? [...channel.members.values()].filter(m => !m.user?.bot) : [];
+    if (members.length > 0) return members;
+
+    // Fallback garantido via guild.voiceStates.cache quando guild.members.cache não estiver populado
+    const vsCache = channel.guild?.voiceStates?.cache;
+    if (vsCache) {
+        const states = typeof vsCache.filter === 'function'
+            ? [...vsCache.filter(vs => vs.channelId === channel.id && vs.id !== channel.client?.user?.id).values()]
+            : [...vsCache.values()].filter(vs => vs.channelId === channel.id && vs.id !== channel.client?.user?.id);
+
+        const result = [];
+        for (const vs of states) {
+            const userId = vs.id;
+            const m = vs.member || channel.guild.members?.cache?.get(userId);
+            if (m && !m.user?.bot) {
+                result.push(m);
+            } else if (!m) {
+                const u = channel.client?.users?.cache?.get(userId);
+                if (!u?.bot) {
+                    result.push({ id: userId, displayName: u?.globalName || u?.username || 'Participante', user: u || { bot: false } });
+                }
+            }
+        }
+        return result;
+    }
+    return [];
 }
 
 function startListening(guild, session) {
     const { connection, voiceChannel, listening } = session;
     const receiver = connection.receiver;
-    const memberOf = (id) => voiceChannel.members.get(id);
-    const isMuted = (id) => { const v = memberOf(id)?.voice; return !!v && (v.mute || v.deaf); };
+    const memberOf = (id) => voiceChannel.members?.get(id) || guild.members?.cache?.get(id);
 
-    receiver.speaking.on('start', (userId) => {
-        if (listening.has(userId) || isMuted(userId)) return;
-        const m = memberOf(userId);
-        if (m?.user.bot) return;
+    receiver.speaking.on('start', async (userId) => {
+        if (listening.has(userId)) return;
+        if (userId === client.user?.id) return;
+
+        let m = memberOf(userId);
+        if (!m && guild.members?.fetch) {
+            try {
+                m = await guild.members.fetch(userId);
+            } catch { /* ignora erro de fetch */ }
+        }
+        if (m?.user?.bot) return;
+
         listening.add(userId);
-        const userName = m?.displayName || client.users.cache.get(userId)?.username || 'Alguém';
+
+        let userName = m?.displayName || m?.user?.username || client.users?.cache?.get(userId)?.username;
+        if (!userName && client.users?.fetch) {
+            try {
+                const u = await client.users.fetch(userId);
+                userName = u?.globalName || u?.username;
+            } catch { /* ignora erro de fetch */ }
+        }
+        if (!userName) userName = 'Alguém';
 
         const opusStream = receiver.subscribe(userId, { end: { behavior: EndBehaviorType.AfterSilence, duration: 1000 } });
         const decoder = new prism.opus.Decoder({ rate: 16000, channels: 1, frameSize: 320 });
         const chunks = [];
         opusStream.pipe(decoder);
         decoder.on('data', c => chunks.push(c));
-        const release = () => listening.delete(userId);
+
+        let released = false;
+        const release = () => {
+            if (released) return;
+            released = true;
+            clearTimeout(watchdog);
+            listening.delete(userId);
+        };
+
+        // Watchdog de segurança: limpa o lock de escuta se o stream travar por 30 segundos
+        const watchdog = setTimeout(() => {
+            if (listening.has(userId)) {
+                console.warn(`⏱️ [Watchdog] Limpando trava de escuta pendente para ${userName} (${userId})`);
+                release();
+                try { opusStream.destroy(); } catch { /* ignora */ }
+                try { decoder.destroy(); } catch { /* ignora */ }
+            }
+        }, 30_000);
+
         opusStream.on('error', release);
         decoder.on('error', release);
         decoder.on('close', release);
 
         decoder.on('end', async () => {
             release();
-            if (isMuted(userId)) return;
             const pcm = trimTrailingSilence(Buffer.concat(chunks));
             if (pcm.length < MIN_SPEECH_SECONDS * 32000) return;
             let sum = 0;
@@ -1833,6 +1891,8 @@ module.exports = {
     globalKeywordWatcher,
     formatAlertEmbed,
     dispatchProactiveAlert,
-    DEFAULT_CRITICAL_PATTERNS
+    DEFAULT_CRITICAL_PATTERNS,
+    humansIn,
+    startListening
 };
 
