@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "agent-master-devsecops": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\waste\\AppData\\Local\\Temp\\agent-master-devsecops\\scripts\\mcp_server.js"
+      ]
+    }
+  }
+}

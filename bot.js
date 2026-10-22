@@ -60,6 +60,7 @@ const { speechStorage, aggregateUtterancesIntoBlocks } = require('./src/speech_s
 const { generatePrometheusMetrics, recordHttpRequest } = require('./src/metrics.js');
 const { VoiceDiarizer } = require('./src/voice_diarization.js');
 const { renderDashboardHtml } = require('./src/web_dashboard.js');
+const { createHealthServer: _createHealthServerMod } = require('./src/http_server.js');
 const { normalizeTargetLanguage, getLanguageInstructions } = require('./src/multilingual_translation.js');
 const { createJiraIssue, extractActionItemsFromAta } = require('./src/jira_integration.js');
 const { dispatchAtaToCorporateChannels, formatSlackAtaPayload, formatTeamsAtaPayload } = require('./src/corporate_webhooks.js');
@@ -1722,96 +1723,18 @@ client.once('clientReady', async (c) => {
 
 const HEALTH_PORT = Number(process.env.PORT || process.env.HEALTH_PORT || 8080);
 function createHealthServer() {
-    return http.createServer((req, res) => {
-        const urlPath = req.url ? req.url.split('?')[0] : '/';
-        const accept = req.headers['accept'] || '';
-
-        // 1. Dashboard Corporativo Web (HTML)
-        if (urlPath === '/dashboard' || (urlPath === '/' && accept.includes('text/html'))) {
-            recordHttpRequest('/dashboard');
-            const data = {
-                status: 'ok',
-                bot: client.user ? client.user.tag : 'offline',
-                uptimeSeconds: Math.round(process.uptime()),
-                engines: availableEngines(),
-                paused: state.paused,
-                memory: {
-                    rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
-                    heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
-                },
-                activeSessions: sessions ? sessions.size : 0,
-                telemetry: getTelemetryMetrics(),
-                biometricProfiles: Array.from(guildDiarizers.values()).reduce((acc, d) => acc + d.profiles.size, 0),
-                timestamp: new Date().toISOString()
-            };
-            const html = renderDashboardHtml(data);
-            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(html);
-            return;
-        }
-
-        // 2. Endpoint de Status JSON (compatível com healthcheck e dashboard API)
-        if (urlPath === '/api/status' || urlPath === '/health' || urlPath === '/') {
-            recordHttpRequest(urlPath === '/' ? '/health' : urlPath);
-            const data = {
-                status: 'ok',
-                bot: client.user ? client.user.tag : 'offline',
-                uptimeSeconds: Math.round(process.uptime()),
-                engines: availableEngines(),
-                paused: state.paused,
-                memory: {
-                    rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
-                    heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
-                },
-                activeSessions: sessions ? sessions.size : 0,
-                telemetry: getTelemetryMetrics(),
-                biometricProfiles: Array.from(guildDiarizers.values()).reduce((acc, d) => acc + d.profiles.size, 0),
-                timestamp: new Date().toISOString()
-            };
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(data));
-            return;
-        }
-
-        // 3. API de Histórico de Falas Recentes
-        if (urlPath === '/api/recent-speeches') {
-            recordHttpRequest('/api/recent-speeches');
-            const recent = speechStorage?.getRecentEntries ? speechStorage.getRecentEntries(50) : [];
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(recent));
-            return;
-        }
-
-        // 4. API de Telemetria
-        if (urlPath === '/api/telemetry') {
-            recordHttpRequest('/api/telemetry');
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(getTelemetryMetrics()));
-            return;
-        }
-
-        // 5. Prometheus Metrics
-        if (urlPath === '/metrics') {
-            recordHttpRequest('/metrics');
-            const speechStats = speechStorage?.getStats ? speechStorage.getStats() : { totalEntries: 0 };
-            const metricsText = generatePrometheusMetrics({
-                uptime: process.uptime(),
-                memory: process.memoryUsage(),
-                cpu: process.cpuUsage(),
-                activeSessions: sessions ? sessions.size : 0,
-                paused: state ? (state.paused ? 1 : 0) : 0,
-                telemetry: getTelemetryMetrics(),
-                speechCount: speechStats.totalEntries || 0,
-                engines: availableEngines()
-            });
-            res.writeHead(200, { 'Content-Type': 'text/plain; version=0.0.4; charset=utf-8' });
-            res.end(metricsText);
-            return;
-        }
-
-        recordHttpRequest(req.url);
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('Not Found');
+    return _createHealthServerMod({
+        client,
+        state,
+        sessions,
+        guildDiarizers,
+        speechStorage,
+        renderDashboardHtml,
+        generatePrometheusMetrics,
+        recordHttpRequest,
+        getTelemetryMetrics,
+        availableEngines,
+        port: HEALTH_PORT
     });
 }
 
