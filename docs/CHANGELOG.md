@@ -51,3 +51,5 @@
 2026-10-22 [DONE] @docs/ Copiar ENGINEERING_RULES.md, ARCHITECTURE.md e playbooks do agent | why: padronizar regras canônicas de engenharia
 2026-10-22 [DONE] @claude_desktop_config.json Configurar servidor MCP vinculado ao agent | why: habilitar fluxo de governança via IDE
 2026-10-22 [DECISION] @.env Adicionar credenciais Atlassian para sincronização Jira/Confluence | why: desbloquear tríplice registro contínuo
+
+2026-10-22 [DONE] @src/http_server.js Modularizacao do servidor HTTP com autenticacao basica e testes (SCRUM-80) | why: proteger dashboard e APIs contra acesso nao autorizado
