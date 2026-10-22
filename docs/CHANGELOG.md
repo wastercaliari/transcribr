@@ -46,3 +46,8 @@
 2026-10-19 [DONE] @src/speech_storage.js @bot.js @tests/speech_blocks.test.js Persistencia de blocos de 50 falas no SQLite e ancoragem factual contra alucinacoes no /resumo (SCRUM-76) | why: eliminar alucinacoes de horarios e participantes na ata tecnica estruturando a conversa em lotes de 50 falas com ranking matematico real e cronologia delimitada
 2026-10-19 [DONE] @README.md @.env.example Reformulacao do README com Quickstart em 3 minutos, documentacao visual do Discord Developer Portal, guia turnkey de deploy e atualizacao do .env.example (SCRUM-77) | why: viabilizar onboarding plug-and-play imediato para qualquer desenvolvedor ou comunidade que clonar o repositorio
 2026-10-19 [FIX] @bot.js @tests/multi_speaker.test.js Correcao de deteccao multi-falante com resolucao dinamica de membros, remocao de trava de mute e resolucao de TypeError no diarizador (SCRUM-78) | why: restaurar a captura de audio de todos os participantes da chamada alem do emissor do comando
+
+2026-10-22 [DONE] @agents/ Integrar suíte agent-master-devsecops com 6 agentes especializados | why: ativar governança multiagente no projeto TranscriBR
+2026-10-22 [DONE] @docs/ Copiar ENGINEERING_RULES.md, ARCHITECTURE.md e playbooks do agent | why: padronizar regras canônicas de engenharia
+2026-10-22 [DONE] @claude_desktop_config.json Configurar servidor MCP vinculado ao agent | why: habilitar fluxo de governança via IDE
+2026-10-22 [DECISION] @.env Adicionar credenciais Atlassian para sincronização Jira/Confluence | why: desbloquear tríplice registro contínuo
